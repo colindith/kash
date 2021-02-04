@@ -6,7 +6,7 @@ import (
 )
 
 type store interface {
-	set(key string, value interface{}, timeout time.Duration) (error)
+	set(key string, value interface{}, timeout time.Duration) error
 	get(key string) (interface{}, error)
 }
 
