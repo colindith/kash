@@ -26,7 +26,7 @@ func NewKash(c *Config) (k *Kash, err error) {
 	}
 
 	s := getDefaultStore()
-	err = k.setStore(s)
+	err = k.setStore(&s)
 	if err != nil {
 		return nil, err
 	}
