@@ -1,4 +1,4 @@
-package kash
+package store
 
 import (
 	"fmt"
@@ -10,10 +10,10 @@ const (
 	triggeringEvictionOptNum = 100
 )
 
-type store interface {
-	set(key string, value interface{}, timeout time.Duration) error
-	get(key string) (interface{}, error)
-	delete(key string) error
+type Store interface {
+	Set(key string, value interface{}, timeout time.Duration) error
+	Get(key string) (interface{}, error)
+	Delete(key string) error
 }
 
 // defaultStore implement with build-in map. Most naive implementation
@@ -28,7 +28,7 @@ type unit struct {
 	deadline int64    // timestamp nanosecond
 }
 
-func (s *defaultStore) set(key string, value interface{}, timeout time.Duration) (err error) {
+func (s *defaultStore) Set(key string, value interface{}, timeout time.Duration) (err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.m[key] = unit{
@@ -46,7 +46,7 @@ func (s *defaultStore) set(key string, value interface{}, timeout time.Duration)
 	return nil
 }
 
-func (s *defaultStore) get(key string) (value interface{}, err error) {
+func (s *defaultStore) Get(key string) (value interface{}, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	v, ok := s.m[key]
@@ -61,14 +61,14 @@ func (s *defaultStore) get(key string) (value interface{}, err error) {
 	return v.data, nil
 }
 
-func (s *defaultStore) delete(key string) error {
+func (s *defaultStore) Delete(key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.m, key)
 	return nil
 }
 
-func getDefaultStore() store {
+func GetDefaultStore() Store {
 	return &defaultStore{
 		m: make(map[string]unit),
 	}
@@ -107,7 +107,7 @@ type entry struct {
 }
 
 
-func getShardedMapStore() store {
+func GetShardedMapStore() Store {
 	s := &shardedMapStore{
 		shardedMaps: make([]shardedMap, shardCount),
 	}
@@ -125,7 +125,7 @@ func (s *shardedMapStore) selectSharedMap(key string) *shardedMap {
 	return &s.shardedMaps[fnv32(key)%shardCount]
 }
 
-func (s *shardedMapStore) set(key string, value interface{}, timeout time.Duration) (err error) {
+func (s *shardedMapStore) Set(key string, value interface{}, timeout time.Duration) (err error) {
 	sm := s.selectSharedMap(key)
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
@@ -145,7 +145,7 @@ func (s *shardedMapStore) set(key string, value interface{}, timeout time.Durati
 	return nil
 }
 
-func (s *shardedMapStore) get(key string) (value interface{}, err error) {
+func (s *shardedMapStore) Get(key string) (value interface{}, err error) {
 	sm := s.selectSharedMap(key)
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
@@ -161,7 +161,7 @@ func (s *shardedMapStore) get(key string) (value interface{}, err error) {
 	return v.data, nil
 }
 
-func (s *shardedMapStore) delete(key string) error {
+func (s *shardedMapStore) Delete(key string) error {
 	sm := s.selectSharedMap(key)
 	sm.mu.Lock()
 	defer sm.mu.Unlock()

@@ -1,4 +1,4 @@
-package kash
+package store
 
 const prime32 = uint32(16777619)
 
