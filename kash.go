@@ -8,7 +8,6 @@ type Kash struct {
 	close chan struct{}    // Need to consider when should the cache close
 }
 
-
 func (k *Kash) Set(key string, value interface{}, timeout time.Duration) error {
 	// TODO: this timeout should make as an option
 	return k.store.set(key, value, timeout)

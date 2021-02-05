@@ -13,6 +13,7 @@ const (
 type store interface {
 	set(key string, value interface{}, timeout time.Duration) error
 	get(key string) (interface{}, error)
+	delete(key string) error
 }
 
 type defaultStore struct {
@@ -57,6 +58,13 @@ func (s *defaultStore) get(key string) (value interface{}, err error) {
 		return nil, fmt.Errorf("error_cache_not_found")
 	}
 	return v.data, nil
+}
+
+func (s *defaultStore) delete(key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.m, key)
+	return nil
 }
 
 func getDefaultStore() store {
