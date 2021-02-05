@@ -8,10 +8,14 @@ import (
 
 const (
 	triggeringEvictionOptNum = 100
+
 )
 
+var maxTime = time.Unix(1<<63-62135596801, 999999999)
+
 type Store interface {
-	Set(key string, value interface{}, timeout time.Duration) error
+	Set(key string, value interface{}) error
+	SetWithTimeout(key string, value interface{}, timeout time.Duration) error
 	Get(key string) (interface{}, error)
 	Delete(key string) error
 }
@@ -19,8 +23,11 @@ type Store interface {
 // defaultStore implement with build-in map. Most naive implementation
 type defaultStore struct {
 	m map[string]unit
-	operationCount uint    // memo the number of keys mutated since last time eviction
 	mu sync.RWMutex        // The whole map share a single lock is inefficient
+
+	operationCount uint    // memo the number of keys mutated since last time eviction
+
+	defaultTimeout time.Duration
 }
 
 type unit struct {
@@ -28,12 +35,21 @@ type unit struct {
 	deadline int64    // timestamp nanosecond
 }
 
-func (s *defaultStore) Set(key string, value interface{}, timeout time.Duration) (err error) {
+func (s *defaultStore) Set(key string, value interface{}) (err error) {
+	return s.SetWithTimeout(key, value, s.defaultTimeout)
+}
+
+func (s *defaultStore) SetWithTimeout(key string, value interface{}, timeout time.Duration) (err error) {
+	deadline := time.Now().Add(timeout).UnixNano()
+	if timeout == 0 {
+		deadline = maxTime.UnixNano()
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.m[key] = unit{
 		data: value,
-		deadline: time.Now().Add(timeout).UnixNano(),
+		deadline: deadline,
 	}
 	s.operationCount++
 	go func() {
@@ -68,10 +84,22 @@ func (s *defaultStore) Delete(key string) error {
 	return nil
 }
 
-func GetDefaultStore() Store {
-	return &defaultStore{
+type OptionType func(s *defaultStore)
+
+func SetDefaultTimeout(timeout time.Duration) OptionType {
+	return func(s *defaultStore) {
+		s.defaultTimeout = timeout
+	}
+}
+
+func GetDefaultStore(opts... OptionType) Store {
+	s := &defaultStore{
 		m: make(map[string]unit),
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // evictMap loop though the map and evict the expired key

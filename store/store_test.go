@@ -20,7 +20,7 @@ func Test_defaultStoreGetAndSetFlow(t *testing.T) {
 	}
 
 	// set the key
-	err = s.Set("123", map[string]string{"jack": "box"}, 1 * time.Minute)
+	err = s.SetWithTimeout("123", map[string]string{"jack": "box"}, 1 * time.Minute)
 	if err != nil {
 		t.Errorf("set_cache_error, err: %v", err)
 	}
@@ -49,7 +49,7 @@ func Test_defaultStoreGetAndSetFlow(t *testing.T) {
 
 func Test_defaultStore_eviction(t *testing.T) {
 	s := GetDefaultStore()
-	err := s.Set("evicted_key", "box", 100*time.Millisecond)
+	err := s.SetWithTimeout("evicted_key", "box", 100*time.Millisecond)
 	if err != nil {
 		t.Errorf("set_cache_error, err: %v", err)
 	}
@@ -57,7 +57,7 @@ func Test_defaultStore_eviction(t *testing.T) {
 
 	i := 0
 	for i < 101 {
-		err := s.Set("123", "box", 100*time.Millisecond)
+		err := s.SetWithTimeout("123", "box", 100*time.Millisecond)
 		if err != nil {
 			t.Errorf("set_cache_error, err: %v", err)
 		}
@@ -74,7 +74,7 @@ func BenchmarkDefaultStoreSetAndGet(b *testing.B) {
 	s := GetDefaultStore()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = s.Set("123456", "654321", time.Minute)
+		_ = s.SetWithTimeout("123456", "654321", time.Minute)
 		_, _ = s.Get("123456")
 	}
 }
