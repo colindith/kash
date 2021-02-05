@@ -69,3 +69,11 @@ func Test_defaultStore_eviction(t *testing.T) {
 		t.Errorf("cache_key_should_expired, err: %v", err)
 	}
 }
+
+func BenchmarkDefaultStoreSetAndGet(b *testing.B) {
+	s := getDefaultStore()
+	for i := 0; i < b.N; i++ {
+		_ = s.set("123456", "654321", time.Minute)
+		_, _ = s.get("123456")
+	}
+}
