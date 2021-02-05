@@ -1,19 +1,12 @@
 package kash
 
-import "fmt"
+const prime32 = uint32(16777619)
 
-type ErrorCode uint32
-
-const (
-	ErrorCacheNotFound ErrorCode = 1
-
-)
-
-type Error struct {
-	ErrMsg string
-	ErrCode ErrorCode
-}
-
-func (e *Error) Error() string {
-	return fmt.Sprintf("%v: %v", e.ErrCode, e.ErrMsg)
+func fnv32(key string) uint32 {
+	hash := uint32(2166136261)
+	for i := 0; i < len(key); i++ {
+		hash *= prime32
+		hash ^= uint32(key[i])
+	}
+	return hash
 }

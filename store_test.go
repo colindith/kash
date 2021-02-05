@@ -72,6 +72,7 @@ func Test_defaultStore_eviction(t *testing.T) {
 
 func BenchmarkDefaultStoreSetAndGet(b *testing.B) {
 	s := getDefaultStore()
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_ = s.set("123456", "654321", time.Minute)
 		_, _ = s.get("123456")
