@@ -30,3 +30,26 @@ func Test_defaultStoreGetAndSetFlow(t *testing.T) {
 		t.Errorf("get_cache_value_incorrect, value: %v, want: %v", v, map[string]string{"jack": "box"})
 	}
 }
+
+func Test_defaultStore_eviction(t *testing.T) {
+	s := getDefaultStore()
+	err := s.set("evicted_key", "box", 100*time.Millisecond)
+	if err != nil {
+		t.Errorf("set_cache_error, err: %v", err)
+	}
+	time.Sleep(100*time.Millisecond)
+
+	i := 0
+	for i < 101 {
+		err := s.set("123", "box", 100*time.Millisecond)
+		if err != nil {
+			t.Errorf("set_cache_error, err: %v", err)
+		}
+		i++
+	}
+	// Should trigger eviction
+	_, err = s.get("evicted_key")
+	if err == nil || err.Error() != "error_cache_not_found" {
+		t.Errorf("cache_key_should_expired, err: %v", err)
+	}
+}
