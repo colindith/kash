@@ -31,7 +31,7 @@ func Test_defaultStoreGetAndSetFlow(t *testing.T) {
 		t.Errorf("Get_cache_error, err: %v", err)
 	}
 	if !reflect.DeepEqual(v, map[string]string{"jack": "box"}) {
-		t.Errorf("Get_cache_value_incorrect, value: %v, want: %v", v, map[string]string{"jack": "box"})
+		t.Errorf("get_cache_value_incorrect, value: %v, want: %v", v, map[string]string{"jack": "box"})
 	}
 
 	// delete key
@@ -65,6 +65,31 @@ func Test_defaultStore_eviction(t *testing.T) {
 	}
 	// Should trigger eviction
 	_, err = s.Get("evicted_key")
+	if err == nil || err.Error() != "error_cache_not_found" {
+		t.Errorf("cache_key_should_expired, err: %v", err)
+	}
+}
+
+func Test_defaultStore_SetDefaultTime(t *testing.T) {
+	s := GetDefaultStore(SetDefaultTimeout(100 * time.Millisecond))
+
+	// set key with default timeout
+	err := s.Set("default_timeout", "box")
+	if err != nil {
+		t.Errorf("set_cache_error, err: %v", err)
+	}
+	// get key right after set
+	v, err := s.Get("default_timeout")
+	if err != nil {
+		t.Errorf("get_cache_error, err: %v", err)
+	}
+	if !reflect.DeepEqual(v, "box") {
+		t.Errorf("get_cache_value_incorrect, value: %v, want: %v", v, "box")
+	}
+	time.Sleep(100*time.Millisecond)
+
+	// get again after timeout
+	_, err = s.Get("default_timeout")
 	if err == nil || err.Error() != "error_cache_not_found" {
 		t.Errorf("cache_key_should_expired, err: %v", err)
 	}
