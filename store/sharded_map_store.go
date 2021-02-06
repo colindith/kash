@@ -29,7 +29,16 @@ type entry struct {
 	deadline int64    // timestamp nanosecond
 }
 
+// SOpt options for creating new shardedMapStore
 type SOpt func(s *shardedMapStore)
+
+// SSetDefaultTimeout generate a SOpt for setting the default time for shardedMapStore
+// The naming is quite weird... The naming for avoid conflict with the defaultStore
+func SSetDefaultTimeout(timeout time.Duration) SOpt {
+	return func(s *shardedMapStore) {
+		s.defaultTimeout = timeout
+	}
+}
 
 func GetShardedMapStore(opts... SOpt) Store {
 	s := &shardedMapStore{
@@ -41,6 +50,7 @@ func GetShardedMapStore(opts... SOpt) Store {
 		sm.mu.Lock()
 		sm.m = make(map[string]entry)
 		sm.mu.Unlock()
+		i++
 	}
 	for _, opt := range opts {
 		opt(s)

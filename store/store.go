@@ -8,7 +8,6 @@ import (
 
 const (
 	triggeringEvictionOptNum = 100
-
 )
 
 var maxTime = time.Unix(1<<63-62135596801, 999999999)
