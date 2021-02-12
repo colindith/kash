@@ -62,10 +62,15 @@ func Test_shardedMapStore_eviction(t *testing.T) {
 		}
 		i++
 	}
-	// Should trigger eviction
+	// cache key were expired
 	_, err = s.Get("evicted_key")
 	if err == nil || err.Error() != "error_cache_not_found" {
 		t.Errorf("cache_key_should_expired, err: %v", err)
+	}
+	// Should trigger eviction
+	want := "{\"123\":\"box\"}"
+	if jsonStr, _ := s.dumpAllJSON(); jsonStr != want {
+		t.Errorf("cache_key_should_be_evicted, got: %v, want: %v", jsonStr, want)
 	}
 }
 
