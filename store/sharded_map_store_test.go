@@ -69,7 +69,7 @@ func Test_shardedMapStore_eviction(t *testing.T) {
 }
 
 func Test_shardedMapStore_SetDefaultTime(t *testing.T) {
-	s := GetShardedMapStore(SSetDefaultTimeout(100 * time.Millisecond))
+	s := GetShardedMapStore(SetDefaultTimeout(100 * time.Millisecond))
 
 	// set key with default timeout
 	err := s.Set("default_timeout", "box")
