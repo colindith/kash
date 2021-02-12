@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -124,12 +125,41 @@ func (s *shardedMapStore) setMaxMemory(size int64) {
 	s.maxMemory = size
 }
 
+// dumpAllJSON print all the data in cache in json format including the timeout data
+func (s *shardedMapStore) dumpAllJSON() (string, error) {
+	// TODO: Maybe can support also dump the timeout of each cache key?
+	// TODO: Support limiting the output
+	totalSize := 0
+	for i := 0; i < len(s.shardedMaps); i++ {
+		sm := &s.shardedMaps[i]
+		sm.mu.RLock()
+		totalSize += len(sm.m)
+		sm.mu.RUnlock()
+	}
+
+	res := make(map[string]interface{}, totalSize)
+	for i := 0; i < len(s.shardedMaps); i++ {
+		sm := &s.shardedMaps[i]
+		sm.mu.RLock()
+		for key, entryValue := range sm.m {
+			res[key] = entryValue.data
+		}
+		sm.mu.RUnlock()
+	}
+
+	resBytes, err := json.Marshal(res)
+	if err != nil {
+		return "", err
+	}
+	return string(resBytes), nil
+}
+
 // evictShardedMap loop though the sharded map and evict the expired key
 func evictShardedMap(sm *shardedMap) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	now := time.Now().UnixNano()
-	for k, e := range sm.m {    // TODO: This is incorrect. This cannot loop through the map
+	for k, e := range sm.m {
 		if e.deadline <= now {
 			delete(sm.m, k)
 		}

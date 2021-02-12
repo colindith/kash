@@ -24,7 +24,7 @@ type Store interface {
 	setEvictionPolicy(policy EvictionPolicy)
 	setMaxMemory(size int64)
 
-	// TODO: add a dump cache method
+	dumpAllJSON() (string, error)
 }
 
 type Option func(s Store)

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -90,5 +91,31 @@ func Test_shardedMapStore_SetDefaultTime(t *testing.T) {
 	_, err = s.Get("default_timeout")
 	if err == nil || err.Error() != "error_cache_not_found" {
 		t.Errorf("cache_key_should_expired, err: %v", err)
+	}
+}
+
+// TODO: user modify the data outside the in-memory cache should not affect the data in the cache
+// Means need to deep copy the data?
+
+func Test_dumpAllJSON(t *testing.T) {
+	s := GetShardedMapStore()
+
+	err := s.Set("Best", "Bites!")
+	if err != nil {
+		t.Errorf("set_cache_error, err: %v", err)
+	}
+	err = s.Set("Timbre", "+")
+	if err != nil {
+		t.Errorf("set_cache_error, err: %v", err)
+	}
+
+	jsonStr, err := s.dumpAllJSON()
+	if err != nil {
+		t.Errorf("dump_all_json_error, err: %v", err)
+	}
+	want := "{\"Best\":\"Bites!\",\"Timbre\":\"+\"}"
+	if jsonStr != want {
+		fmt.Println("json str: ", jsonStr)
+		t.Errorf("dump_all_json_incorrect, got: %v, want: %v", jsonStr, want)
 	}
 }
