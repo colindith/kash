@@ -2,19 +2,28 @@ package store
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"time"
+
+	"github.com/docker/go-units"
 )
 
 const (
 	shardCount = 32
+
+	EvictionRandom EvictionPolicy = 0
 )
+
+type EvictionPolicy uint32
 
 // shardedMapStore
 type shardedMapStore struct {
 	shardedMaps []shardedMap
 
 	defaultTimeout time.Duration
+	maxMemory int64              // unit: bytes
+	evictionPolicy EvictionPolicy
 }
 
 type shardedMap struct {
@@ -37,6 +46,27 @@ type SOpt func(s *shardedMapStore)
 func SSetDefaultTimeout(timeout time.Duration) SOpt {
 	return func(s *shardedMapStore) {
 		s.defaultTimeout = timeout
+	}
+}
+
+// SSetMaxMemory generate a SOpt for setting the max memory used by the data
+// Note it only limit the mem usage of the values, not the mem used by the whole process
+// When mem usage exceed this threshold, the stored data would be evicted according to the eviction policy
+func SSetMaxMemory(sizeHuman string) SOpt {
+	return func(s *shardedMapStore) {
+		size, err := units.FromHumanSize(sizeHuman)
+		if err != nil {
+			log.Fatal("invalid_max_memory_option, err: ", err)
+			return
+		}
+		s.maxMemory = size
+	}
+}
+
+// SSetEvictionPolicy set the policy when the memory usage exceed the threshold
+func SSetEvictionPolicy(policy EvictionPolicy) SOpt {
+	return func(s *shardedMapStore) {
+		s.evictionPolicy = policy
 	}
 }
 
