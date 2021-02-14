@@ -14,7 +14,7 @@ type Kash struct {
 
 func (k *Kash) Set(key string, value interface{}, timeout time.Duration) error {
 	// TODO: this timeout should make as an option
-	return k.store.Set(key, value, timeout)
+	return k.store.SetWithTimeout(key, value, timeout)
 }
 func (k *Kash) Get(key string) (interface{}, error) {
 	return k.store.Get(key)

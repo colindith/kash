@@ -1,4 +1,5 @@
 .idea/*
+tcp/cmd/*
 
 # Binaries for programs and plugins
 *.exe

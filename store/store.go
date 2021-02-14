@@ -12,8 +12,6 @@ const (
 	triggeringEvictionOptNum = 100
 )
 
-var maxTime = time.Unix(1<<63-62135596801, 999999999)
-
 type Store interface {
 	Set(key string, value interface{}) error
 	SetWithTimeout(key string, value interface{}, timeout time.Duration) error
@@ -24,7 +22,7 @@ type Store interface {
 	setEvictionPolicy(policy EvictionPolicy)
 	setMaxMemory(size int64)
 
-	dumpAllJSON() (string, error)
+	DumpAllJSON() (string, error)
 }
 
 type Option func(s Store)
@@ -83,7 +81,7 @@ func (s *defaultStore) Set(key string, value interface{}) (err error) {
 func (s *defaultStore) SetWithTimeout(key string, value interface{}, timeout time.Duration) (err error) {
 	deadline := time.Now().Add(timeout).UnixNano()
 	if timeout == 0 {
-		deadline = maxTime.UnixNano()
+		deadline = maxInt64
 	}
 
 	s.mu.Lock()

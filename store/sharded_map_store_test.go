@@ -69,7 +69,7 @@ func Test_shardedMapStore_eviction(t *testing.T) {
 	}
 	// Should trigger eviction
 	want := "{\"123\":\"box\"}"
-	if jsonStr, _ := s.dumpAllJSON(); jsonStr != want {
+	if jsonStr, _ := s.DumpAllJSON(); jsonStr != want {
 		t.Errorf("cache_key_should_be_evicted, got: %v, want: %v", jsonStr, want)
 	}
 }
@@ -102,7 +102,7 @@ func Test_shardedMapStore_SetDefaultTime(t *testing.T) {
 // TODO: user modify the data outside the in-memory cache should not affect the data in the cache
 // Means need to deep copy the data?
 
-func Test_dumpAllJSON(t *testing.T) {
+func Test_DumpAllJSON(t *testing.T) {
 	s := GetShardedMapStore()
 
 	err := s.Set("Best", "Bites!")
@@ -114,7 +114,7 @@ func Test_dumpAllJSON(t *testing.T) {
 		t.Errorf("set_cache_error, err: %v", err)
 	}
 
-	jsonStr, err := s.dumpAllJSON()
+	jsonStr, err := s.DumpAllJSON()
 	if err != nil {
 		t.Errorf("dump_all_json_error, err: %v", err)
 	}

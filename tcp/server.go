@@ -1,10 +1,9 @@
-package tcp
+package main
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"math/rand"
 	"net"
 	"strconv"
 	"time"
@@ -19,8 +18,8 @@ const (
 )
 
 var (
-	respOK = []byte("OK")
-	respNotOK = []byte("NOT OK")
+	respOK = []byte("OK\n")
+	respNotOK = []byte("NOT OK\n")
 )
 
 var shardedMapStore store.Store
@@ -29,25 +28,17 @@ func main() {
 	initStore()
 	defer closeStore()
 
-	runTCPServer()
+	go runTCPServer()
 }
 
 func runTCPServer() {
-	//arguments := os.Args
-	//if len(arguments) == 1 {
-	//	fmt.Println("Please provide a port number!")
-	//	return
-	//}
-
-
-
 	l, err := net.Listen(connType, connHost + ":" + connPort)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	defer l.Close()
-	rand.Seed(time.Now().Unix())
+	fmt.Println("listen at: " + connHost + ":" + connPort)
 
 	for {
 		c, err := l.Accept()
@@ -78,9 +69,9 @@ func handleConnection(c net.Conn) {
 			return
 		}
 
-		args := bytes.Split(netData, []byte{' '})
+		args := bytes.Split(netData[:len(netData)-1], []byte{' '})
 
-		//args := strings.Split(strings.TrimSpace(netData), " ")
+		result := respOK
 		switch string(args[0]) {
 		case "STOP":
 			break
@@ -88,31 +79,30 @@ func handleConnection(c net.Conn) {
 			var err error
 			resp, ok := handleGETCmd(args[1:]...)
 			if !ok {
-				resp = respNotOK
+				result = respNotOK
+			} else {
+				result = append(resp, byte('\n'))
 			}
-			_, err = c.Write(resp)
 
 			if err != nil {
 				// TODO: log the error
 			}
 		case "SET":
 			var err error
-			resp := respOK
 			ok := handleSETCmd(args[1:]...)
 			if !ok {
-				resp = respNotOK
+				result = respNotOK
 			}
-			_, err = c.Write(resp)
 
 			if err != nil {
 				// TODO: log the error
 			}
 		// TODO: handle other cmd
 		}
-
-
-		result := "OK\n"
-		c.Write([]byte(result))
+		_, err = c.Write(result)
+		if err != nil {
+			// TODO: log the error
+		}
 	}
 
 }

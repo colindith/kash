@@ -15,6 +15,8 @@ const (
 	EvictionVolatileLRU EvictionPolicy    = 1
 	EvictionAllRandom EvictionPolicy      = 2
 	EvictionAllLRU EvictionPolicy         = 3
+
+	maxInt64 = int64(^uint64(0)>>1)
 )
 
 type EvictionPolicy uint32
@@ -71,7 +73,7 @@ func (s *shardedMapStore) SetWithTimeout(key string, value interface{}, timeout 
 	// if timeout == 0, the key will never expire
 	deadline := time.Now().Add(timeout).UnixNano()
 	if timeout == 0 {
-		deadline = maxTime.UnixNano()
+		deadline = maxInt64
 	}
 
 	sm := s.selectSharedMap(key)
@@ -130,7 +132,7 @@ func (s *shardedMapStore) setMaxMemory(size int64) {
 }
 
 // dumpAllJSON print all the data in cache in json format including the timeout data
-func (s *shardedMapStore) dumpAllJSON() (string, error) {
+func (s *shardedMapStore) DumpAllJSON() (string, error) {
 	// TODO: Maybe can support also dump the timeout of each cache key?
 	// TODO: Support limiting the output
 	totalSize := 0
