@@ -1,2 +1,5 @@
-rm -r tcp/server
-go build tcp/server.go -o tcp cmd/server
+all:
+	rm -r cmd/server
+	rm -r cmd/client
+	go build tcp/server.go -o cmd/server
+	./cmd/server

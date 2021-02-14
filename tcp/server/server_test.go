@@ -9,13 +9,9 @@ import (
 )
 
 func Test_runTCPServer(t *testing.T) {
-	initStore()
-	defer closeStore()
+	StartKashServer()
 
-	go runTCPServer()
-
-
-	conn, err := net.DialTimeout("tcp", connHost + ":" + connPort, 10 * time.Second)
+	conn, err := net.DialTimeout("tcp", connHost+ ":" +connPort, 10 * time.Second)
 	if err != nil {
 		// handle error
 		t.Errorf("dail_to_tcp_server_err | err=%v", err.Error())
