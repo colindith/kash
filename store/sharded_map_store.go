@@ -10,7 +10,11 @@ import (
 const (
 	shardCount = 32
 
-	EvictionRandom EvictionPolicy = 0
+	// The EvictionPolicy is not implemented
+	EvictionVolatileRandom EvictionPolicy = 0
+	EvictionVolatileLRU EvictionPolicy    = 1
+	EvictionAllRandom EvictionPolicy      = 2
+	EvictionAllLRU EvictionPolicy         = 3
 )
 
 type EvictionPolicy uint32
@@ -164,4 +168,9 @@ func evictShardedMap(sm *shardedMap) {
 			delete(sm.m, k)
 		}
 	}
+}
+
+// evictVolatileRandomShardedMap loop though the sharded map and evict the expired key
+func evictVolatileRandomShardedMap(sm *shardedMap) {
+	// TODO: implement this
 }

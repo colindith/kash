@@ -56,7 +56,7 @@ func Test_shardedMapStore_eviction(t *testing.T) {
 
 	i := 0
 	for i < 101 {
-		err := s.SetWithTimeout("123", "box", 100*time.Millisecond)
+		err = s.SetWithTimeout("123", "box", 100*time.Millisecond)
 		if err != nil {
 			t.Errorf("set_cache_error, err: %v", err)
 		}
