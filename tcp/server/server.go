@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"fmt"
+	"log"
 	"net"
 	"strconv"
 	"time"
@@ -40,16 +40,16 @@ func StartKashServer() {
 func runTCPServer() {
 	l, err := net.Listen(connType, connHost + ":" + connPort)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("net_listen_error | err=%v", err.Error())
 		return
 	}
 	defer l.Close()
-	fmt.Println("listen at: " + connHost + ":" + connPort)
+	log.Printf("kash_server_listen_at | %v", connHost + ":" + connPort)
 
 	for {
 		c, err := l.Accept()
 		if err != nil {
-			fmt.Println(err)
+			log.Fatalf("net_accept_error | err=%v", err.Error())
 			return
 		}
 		go handleConnection(c)
@@ -65,12 +65,12 @@ func closeStore() {
 }
 
 func handleConnection(c net.Conn) {
-	fmt.Printf("Serving %s\n", c.RemoteAddr().String())
+	log.Printf("serving_connection | addr=%v", c.RemoteAddr().String())
 	defer c.Close()
 	for {
 		netData, err := bufio.NewReader(c).ReadBytes('\n')
 		if err != nil {
-			fmt.Println(err)
+			log.Fatalf("bufio_read_bytes_error | err=%v", err.Error())
 			return
 		}
 
@@ -93,7 +93,7 @@ func handleConnection(c net.Conn) {
 
 		_, err = c.Write(result)
 		if err != nil {
-			// TODO: log the error
+			log.Fatalf("net_connection_write_error | err=%v", err.Error())
 		}
 	}
 
@@ -115,7 +115,7 @@ func handleGETCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
 	// TODO: handle other params
 	value, err := shardedMapStore.Get(key)
 	if err != nil {
-		// TODO: log the error
+		log.Printf("handler_get_cmd_failed | msg=%v", err.Error())
 		return nil, err.Error(), false
 	}
 	resp = append(value.([]byte), byte('\n'))
@@ -130,19 +130,18 @@ func handleSETCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
 	if len(params) == 2 {
 		err := shardedMapStore.Set(key, params[1])
 		if err != nil {
-			// TODO: log the error
+			log.Printf("handler_set_cmd_failed | msg=%v", err.Error())
 			return nil, err.Error(), false
 		}
 	} else if len(params) == 3 {
 		timeout, err := strconv.Atoi(string(params[2]))
 		if err != nil {
-			// TODO: log the error
-			// TODO: should also return error msg
+			log.Printf("handler_set_cmd_failed | msg=%v", err.Error())
 			return nil, err.Error(), false
 		}
 		err = shardedMapStore.SetWithTimeout(key, params[1], time.Duration(timeout)*time.Second)
 		if err != nil {
-			// TODO: log the error
+			log.Printf("handler_set_cmd_failed | msg=%v", err.Error())
 			return nil, err.Error(), false
 		}
 	}
