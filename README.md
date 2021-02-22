@@ -1,6 +1,6 @@
 Kash golang in-memory cache
 ==
-###Usage
+### Usage
 ```go
 import "github.com/colindith/kash/store"
 
@@ -21,7 +21,7 @@ s.Delete("key1")
 
 ```
 
-###Features
+### Features
 * Implemented with sharded map to reduce time waiting for lock
 * Features dumping all data into JSON format
 * Support cache key with/without timeout
