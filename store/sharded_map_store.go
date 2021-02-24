@@ -147,6 +147,11 @@ func (s *shardedMapStore) Increase(key string) error {
 	return nil
 }
 
+func (s *shardedMapStore) Close() error {
+	s.shardedMaps = nil
+	return nil
+}
+
 func (s *shardedMapStore) setDefaultTimeout(timeout time.Duration) {
 	s.defaultTimeout = timeout
 }

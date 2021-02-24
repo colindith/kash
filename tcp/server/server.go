@@ -24,26 +24,26 @@ var (
 var shardedMapStore store.Store
 
 func main() {
-	StartKashServer()
+	StartKashServer(connPort)
 }
 
 // StartKashServer is the entry point of the kash server
-func StartKashServer() {
+func StartKashServer(port string) {
 	initRouter()
 
 	initStore()
-	defer closeStore()
 
-	go runTCPServer()
+	go runTCPServer(port)
 }
 
-func runTCPServer() {
-	l, err := net.Listen(connType, connHost + ":" + connPort)
+func runTCPServer(port string) {
+	l, err := net.Listen(connType, connHost + ":" + port)
 	if err != nil {
 		log.Fatalf("net_listen_error | err=%v", err.Error())
 		return
 	}
 	defer l.Close()
+	defer closeStore()
 	log.Printf("kash_server_listen_at | %v", connHost + ":" + connPort)
 
 	for {
@@ -61,7 +61,7 @@ func initStore() {
 }
 
 func closeStore() {
-
+	shardedMapStore.Close()
 }
 
 func handleConnection(c net.Conn) {
@@ -105,12 +105,18 @@ var cmdHandlerRouter map[string]handlerFunc
 
 func initRouter() {
 	cmdHandlerRouter = map[string]handlerFunc{
-		"GET": handleGETCmd,
-		"SET": handleSETCmd,
+		"GET":  handleGETCmd,
+		"SET":  handleSETCmd,
+		"DEL":  handleDELCmd,
+		"INCR": handleINCRCmd,
+		"DUMP": handleDUMPALLCmd,
 	}
 }
 
 func handleGETCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
+	if len(params) < 1 {
+		return nil, "not enough parameters", false
+	}
 	key := string(params[0])
 	// TODO: handle other params
 	value, err := shardedMapStore.Get(key)
@@ -149,4 +155,43 @@ func handleSETCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
 
 
 	return respOK, "", true
+}
+
+func handleDELCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
+	if len(params) < 1 {
+		return nil, "not enough parameters", false
+	}
+	key := string(params[0])
+	// TODO: handle other params
+	err := shardedMapStore.Delete(key)
+	if err != nil {
+		log.Printf("handler_del_cmd_failed | msg=%v", err.Error())
+		return nil, err.Error(), false
+	}
+	return respOK, "", true
+}
+
+func handleINCRCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
+	if len(params) < 1 {
+		return nil, "not enough parameters", false
+	}
+	key := string(params[0])
+
+	err := shardedMapStore.Increase(key)
+	if err != nil {
+		log.Printf("handler_increase_cmd_failed | msg=%v", err.Error())
+		return nil, err.Error(), false      // TODO: The returned err msg should be unified
+	}
+	return respOK, "", true
+}
+
+func handleDUMPALLCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
+	// ignore param?
+	// TODO: this method should limit the number of keys?
+	jsonStr, err := shardedMapStore.DumpAllJSON()
+	if err != nil {
+		log.Printf("handler_dump_all_cmd_failed | msg=%v", err.Error())
+		return nil, err.Error(), false
+	}
+	return []byte(jsonStr), "", true
 }

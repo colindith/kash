@@ -24,6 +24,8 @@ type Store interface {
 	setMaxMemory(size int64)
 
 	DumpAllJSON() (string, error)
+
+	Close() error
 }
 
 type Option func(s Store)
