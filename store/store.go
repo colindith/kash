@@ -17,6 +17,7 @@ type Store interface {
 	SetWithTimeout(key string, value interface{}, timeout time.Duration) error
 	Get(key string) (interface{}, error)
 	Delete(key string) error
+	Increase(key string) error
 
 	setDefaultTimeout(timeout time.Duration)
 	setEvictionPolicy(policy EvictionPolicy)

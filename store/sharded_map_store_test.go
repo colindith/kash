@@ -124,3 +124,51 @@ func Test_DumpAllJSON(t *testing.T) {
 		t.Errorf("dump_all_json_incorrect, got: %v, want: %v", jsonStr, want)
 	}
 }
+
+func Test_Increase(t *testing.T) {
+	s := GetShardedMapStore()
+
+	err := s.Increase("desert")
+	if err != nil {
+		t.Errorf("incr_non_existed_key_err, err: %v", err)
+	}
+
+	v, err := s.Get("desert")
+	if err != nil {
+		t.Errorf("get_cache_error, err: %v", err)
+	}
+	if v.(int) != 1 {
+		t.Errorf("incr_value_err")
+	}
+
+	err = s.Increase("desert")
+	if err != nil {
+		t.Errorf("incr_existed_err, err: %v", err)
+	}
+	v, err = s.Get("desert")
+	if err != nil {
+		t.Errorf("get_cache_error, err: %v", err)
+	}
+	if v.(int) != 2 {
+		t.Errorf("incr_value_err, expected=%v, got=%v", 2, v)
+	}
+
+
+	err = s.Set("gossip", uint32(1234))
+	if err != nil {
+		t.Errorf("set_cache_error, err: %v", err)
+	}
+
+	err = s.Increase("gossip")
+	if err != nil {
+		t.Errorf("incr_existed_key_err, err: %v", err)
+	}
+
+	v, err = s.Get("gossip")
+	if err != nil {
+		t.Errorf("get_cache_error, err: %v", err)
+	}
+	if v.(uint32) != uint32(1235) {
+		t.Errorf("incr_value_err, expected=%v, got=%v", 1235, v)
+	}
+}

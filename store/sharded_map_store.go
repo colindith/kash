@@ -32,7 +32,7 @@ type shardedMapStore struct {
 }
 
 type shardedMap struct {
-	m map[string]entry
+	m map[string]*entry
 	mu sync.RWMutex
 
 	opCount uint    // memo the number of keys mutated since last time eviction
@@ -51,7 +51,7 @@ func GetShardedMapStore(opts... Option) Store {
 	for i < len(s.shardedMaps) {
 		sm := &s.shardedMaps[i]
 		sm.mu.Lock()
-		sm.m = make(map[string]entry)
+		sm.m = make(map[string]*entry)
 		sm.mu.Unlock()
 		i++
 	}
@@ -80,7 +80,7 @@ func (s *shardedMapStore) SetWithTimeout(key string, value interface{}, timeout 
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	sm.m[key] = entry{
+	sm.m[key] = &entry{
 		data: value,
 		deadline: deadline,
 	}
@@ -116,6 +116,34 @@ func (s *shardedMapStore) Delete(key string) error {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	delete(sm.m, key)
+	return nil
+}
+
+// Increase increase the number stored at the key by one. Set the value to 1 if the key is not exist.
+// Return an error if the stored value is not a "integer". Support int, uint32, uint64
+func (s *shardedMapStore) Increase(key string) error {
+	sm := s.selectSharedMap(key)
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	v, ok := sm.m[key]
+	if !ok {
+		sm.m[key] = &entry{
+			data: 1,
+			deadline: maxInt64,
+		}
+		return nil
+	}
+	switch data := v.data.(type) {
+	case int:
+		sm.m[key].data = data + 1
+	case uint32:
+		sm.m[key].data = data + 1
+	case uint64:
+		sm.m[key].data = data + 1
+	default:
+		return fmt.Errorf("value_is_not_number_type")
+	}
 	return nil
 }
 
