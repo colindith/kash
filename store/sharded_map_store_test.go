@@ -172,3 +172,26 @@ func Test_Increase(t *testing.T) {
 		t.Errorf("incr_value_err, expected=%v, got=%v", 1235, v)
 	}
 }
+
+type TestStruct struct {
+	Field1 int
+	Field2 int
+}
+
+func Test_modifyCacheDataFromOutside(t *testing.T) {
+	s := GetShardedMapStore()
+
+	_ = s.Set("gossip", &TestStruct{5, 50})
+
+	testStructInterface, _ := s.Get("gossip")
+
+	testStruct := testStructInterface.(*TestStruct)
+	testStruct.Field1 = 6
+
+	want := "{\"gossip\":{\"Field1\":5,\"Field2\":50}}"
+
+	if jsonStr, _ := s.DumpAllJSON(); jsonStr != want {
+		t.Errorf("cached_data_deing_modified_from_outside | want=%v | got=%v", want, jsonStr)
+	}
+
+}

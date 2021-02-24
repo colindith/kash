@@ -70,6 +70,9 @@ func (s *shardedMapStore) Set(key string, value interface{}) (err error) {
 }
 
 func (s *shardedMapStore) SetWithTimeout(key string, value interface{}, timeout time.Duration) (err error) {
+	// TODO: This set method is very naive. It doesn't put any restriction on the input type.
+	// Also, when it get a value, it remove all the pointers above it find the real data. Only save the real data.
+
 	// if timeout == 0, the key will never expire
 	deadline := time.Now().Add(timeout).UnixNano()
 	if timeout == 0 {
@@ -108,6 +111,7 @@ func (s *shardedMapStore) Get(key string) (value interface{}, err error) {
 		delete(sm.m, key)
 		return nil, fmt.Errorf("error_cache_not_found")
 	}
+	// TODO: This is terrible. If return the data directly, users can edit the data outside the cache store.
 	return v.data, nil
 }
 

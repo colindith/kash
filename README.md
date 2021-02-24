@@ -1,4 +1,4 @@
-Kash golang in-memory cache
+Kash golang thread-safe in-memory cache
 ==
 ## In-memory Cache
 ### Usage
