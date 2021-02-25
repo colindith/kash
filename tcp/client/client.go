@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"net"
 	"time"
+
+	"github.com/colindith/kash/cmd_reader"
 )
 
 // TODO: The client package should start a cmd line process and let users type the cmd in the cmd line.
 // TODO: The cmd line should be provide some basic functions like using upper arrow key to find the history and and using left/right arrow to move the cursor
 
 func main() {
-
+	cmd_reader.Run()
 }
 
 // SendTCPCmd send the cmd to the remote tcp server and close the connection immediately
