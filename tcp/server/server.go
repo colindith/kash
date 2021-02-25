@@ -33,7 +33,7 @@ func StartKashServer(port string) {
 
 	initStore()
 
-	go runTCPServer(port)
+	runTCPServer(port)
 }
 
 func runTCPServer(port string) {
