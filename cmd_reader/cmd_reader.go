@@ -3,6 +3,7 @@ package cmd_reader
 import (
 	"fmt"
 	"github.com/nsf/termbox-go"
+	"os"
 )
 
 const (
@@ -27,9 +28,18 @@ type cmdLine struct {
 	buf []rune
 	tmp []rune
 
-	ptr uint8
+	ptr int
 
 	promptStr string
+}
+
+func myPrint(a... interface{}) {
+	for i := 0; i < len(a); i++ {
+		if r, ok := a[i].(rune); ok {
+			a[i] = string(r)
+		}
+	}
+	fmt.Fprint(os.Stdout, a...)
 }
 
 func newCMDLine(prompt string) *cmdLine {
@@ -50,7 +60,7 @@ func (cl *cmdLine) addHistory() {
 }
 
 func (cl *cmdLine) printPrompt() {
-	fmt.Print(cl.promptStr)
+	myPrint(cl.promptStr)
 }
 
 func (cl *cmdLine) setPromptStr(prompt string) {
@@ -58,19 +68,47 @@ func (cl *cmdLine) setPromptStr(prompt string) {
 }
 
 func (cl *cmdLine) newLine() {
-	fmt.Print("\n")
+	myPrint("\n")
 	cl.resetBufAndPrintPrompt()
 }
 
 func (cl *cmdLine) back(n int) {
+	cl.ptr -= n
+	if cl.ptr < 0 {
+		cl.ptr = 0
+	}
 	for n > 0 {
-		fmt.Print("\b")
+		myPrint("\b")
 		n--
 	}
 }
 
+func (cl *cmdLine) movePtrTo(ptr int) bool {
+	if ptr <= len(cl.buf) - 1 && ptr >= 0 {
+		cl.ptr = ptr
+		return true
+	}
+	return false
+}
+
 func (cl *cmdLine) insertChar(r rune) {
-	fmt.Print(string(r))
+	bufLen := len(cl.buf)
+	if cl.ptr == bufLen {
+		myPrint(r)
+		cl.ptr = bufLen + 1
+		cl.buf = append(cl.buf, r)
+		return
+	}
+
+	i := bufLen - 1
+	cl.buf = append(cl.buf, cl.buf[i])
+	for i > cl.ptr {
+		cl.buf[i] = cl.buf[i-1]
+		i--
+	}
+	cl.ptr++
+
+	myPrint(r)
 
 }
 
@@ -98,17 +136,22 @@ func Run() {
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
-			fmt.Println("ev.Key", ev.Key, " | ", string(ev.Ch))
+
 			if ev.Key == exitSignal {
 				return
 			}
-			continue
+			//fmt.Println("ev.Key", ev.Key, " | ", string(ev.Ch))
+			//continue
 
 			switch ev.Key {
 			case keyLeft:
+				cl.back(1)
 			case keyRight:
+				if cl.movePtrTo(cl.ptr+1) {
+					myPrint(cl.buf[cl.ptr+1])
+				}
 			case keyBackSpace:
-				fmt.Print("\b \b")
+				myPrint("\b \b")
 			case keyDelete:
 				fmt.Print("\b\b\b\b\b\b")
 			default:
