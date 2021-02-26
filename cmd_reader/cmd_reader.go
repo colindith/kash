@@ -38,6 +38,8 @@ func myPrint(a... interface{}) {
 	for i := 0; i < len(a); i++ {
 		if r, ok := a[i].(rune); ok {
 			a[i] = string(r)
+		} else if r, ok := a[i].([]rune); ok {
+			a[i] = string(r)
 		}
 	}
 	fmt.Fprint(os.Stdout, a...)
@@ -107,12 +109,6 @@ func (cl *cmdLine) movePtrTo(ptr int) bool {
 
 func (cl *cmdLine) insertChar(r rune) {
 	bufLen := len(cl.buf)
-	if cl.ptr == bufLen {
-		myPrint(r)
-		cl.ptr = bufLen + 1
-		cl.buf = append(cl.buf, r)
-		return
-	}
 
 	i := bufLen - 1
 	cl.buf = append(cl.buf, cl.buf[i])
@@ -120,9 +116,13 @@ func (cl *cmdLine) insertChar(r rune) {
 		cl.buf[i] = cl.buf[i-1]
 		i--
 	}
-	cl.ptr++
+	cl.buf[cl.ptr] = r
 
-	myPrint(r)
+	myPrint(r, cl.buf[cl.ptr+1:])
+	for i = 0; i < bufLen-cl.ptr; i++ {
+		myPrint("\b")
+	}
+	cl.ptr++
 }
 
 func (cl *cmdLine) backSpace() {
