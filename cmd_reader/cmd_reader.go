@@ -21,11 +21,14 @@ const (
 	keyCtlD = 4
 	keyCtlC = 3
 	keyCtlV = 22
+
+	colorDefault   = "033[0m"
+	colorCursor    = "\u001B[1;47m"
 )
 
 type cmdLine struct {
 	history [][]rune     // TODO: the history should be saved in hard disk
-	buf []rune
+	buf []rune           // The final of buf should always be ' '
 	tmp []rune
 
 	ptr int
@@ -44,14 +47,14 @@ func myPrint(a... interface{}) {
 
 func newCMDLine(prompt string) *cmdLine {
 	cl := &cmdLine{}
-	cl.resetBufAndPrintPrompt()
 	cl.setPromptStr(prompt)
+	cl.resetBufAndPrintPrompt()
 	return cl
 }
 
 func (cl *cmdLine) resetBufAndPrintPrompt() {
 	cl.ptr = 0
-	cl.buf = make([]rune, 0)
+	cl.buf = []rune{' '}
 	cl.printPrompt()
 }
 
@@ -73,12 +76,14 @@ func (cl *cmdLine) newLine() {
 }
 
 func (cl *cmdLine) back(n int) {
-	cl.ptr -= n
-	if cl.ptr < 0 {
-		cl.ptr = 0
+	if cl.ptr < n {
+		n = cl.ptr
+		// should beep?
 	}
+
 	for n > 0 {
 		myPrint("\b")
+		cl.ptr--
 		n--
 	}
 }
@@ -109,9 +114,37 @@ func (cl *cmdLine) insertChar(r rune) {
 	cl.ptr++
 
 	myPrint(r)
-
 }
 
+func (cl *cmdLine) backSpace() {
+	if cl.ptr <= 0 {
+		// beep
+		return
+	}
+	if cl.ptr == len(cl.buf) - 1 {
+		myPrint("\b \b")
+		cl.ptr--
+		return
+	}
+
+	cl.back(1)
+	tmpPtr := cl.ptr
+	for i := cl.ptr; i < len(cl.buf)-1; i++ {
+		cl.buf[i] = cl.buf[i+1]
+		myPrint(cl.buf[i])
+	}
+	myPrint(cl.buf[len(cl.buf)-1])
+
+	cl.buf = cl.buf[:len(cl.buf)-1]
+
+	for i := 0; i < (len(cl.buf) - tmpPtr)+1; i++ {
+		myPrint('\b')
+	}
+}
+
+//func pop(slice []rune) rune {
+//
+//}
 
 func Run() {
 	err := termbox.Init()
@@ -151,7 +184,7 @@ func Run() {
 					myPrint(cl.buf[cl.ptr+1])
 				}
 			case keyBackSpace:
-				myPrint("\b \b")
+				cl.backSpace()
 			case keyDelete:
 				fmt.Print("\b\b\b\b\b\b")
 			default:
