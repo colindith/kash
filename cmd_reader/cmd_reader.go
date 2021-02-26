@@ -27,8 +27,8 @@ const (
 	keyCtlC = 3
 	keyCtlV = 22
 
-	colorDefault   = "033[0m"
-	colorCursor    = "\u001B[1;47m"
+	colorDefault   = "\u001B[0m"
+	colorCursor    = "\u001B[1;47;35m"
 )
 
 func myPrint(a... interface{}) {
@@ -61,6 +61,7 @@ func newCMDLine(prompt string) *cmdLine {
 	cl := &cmdLine{}
 	cl.setPromptStr(prompt)
 	cl.resetBufAndPrintPrompt()
+	cl.blink(true)
 	return cl
 }
 
@@ -154,6 +155,14 @@ func (cl *cmdLine) moveRight() {
 	}
 }
 
+func (cl *cmdLine) blink(on bool) {
+	if on {
+		myPrint(colorCursor, cl.buf[cl.ptr], colorDefault, '\b')
+		return
+	}
+	myPrint(colorDefault, cl.buf[cl.ptr], '\b')
+}
+
 func Run(prompt string) {
 	err := termbox.Init()
 	if err != nil {
@@ -172,7 +181,7 @@ func Run(prompt string) {
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
-
+			cl.blink(false)
 			if ev.Key == exitSignal {
 				return
 			}
@@ -190,5 +199,6 @@ func Run(prompt string) {
 				cl.insertChar(ev.Ch)
 			}
 		}
+		cl.blink(true)
 	}
 }
