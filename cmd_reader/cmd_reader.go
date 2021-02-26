@@ -147,6 +147,12 @@ func (cl *cmdLine) backSpace() {
 	}
 }
 
+func (cl *cmdLine) moveRight() {
+	if cl.movePtrTo(cl.ptr+1) {
+		myPrint(cl.buf[cl.ptr-1])
+	}
+}
+
 func Run() {
 	err := termbox.Init()
 	if err != nil {
@@ -176,9 +182,7 @@ func Run() {
 			case keyLeft:
 				cl.back(1)
 			case keyRight:
-				if cl.movePtrTo(cl.ptr+1) {
-					myPrint(cl.buf[cl.ptr+1])
-				}
+				cl.moveRight()
 			case keyNewLine:
 				cl.newLine()
 			case keyBackSpace:
