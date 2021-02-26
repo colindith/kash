@@ -13,7 +13,7 @@ import (
 // TODO: The cmd line should be provide some basic functions like using upper arrow key to find the history and and using left/right arrow to move the cursor
 
 func main() {
-	cmd_reader.Run()
+	cmd_reader.Run("kash> ")
 }
 
 // SendTCPCmd send the cmd to the remote tcp server and close the connection immediately

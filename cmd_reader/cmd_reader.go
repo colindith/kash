@@ -12,7 +12,7 @@ var (
 )
 
 const (
-	exitSignal = 4
+	exitSignal = 4     // Ctrl + D
 
 	keyBackSpace = 127
 	keyDelete = 65522
@@ -36,9 +36,10 @@ func myPrint(a... interface{}) {
 		vt.printVirtualTerm(a...)
 	}
 	for i := 0; i < len(a); i++ {
-		if r, ok := a[i].(rune); ok {
+		switch r := a[i].(type) {
+		case rune:
 			a[i] = string(r)
-		} else if r, ok := a[i].([]rune); ok {
+		case []rune:
 			a[i] = string(r)
 		}
 	}
@@ -153,7 +154,7 @@ func (cl *cmdLine) moveRight() {
 	}
 }
 
-func Run() {
+func Run(prompt string) {
 	err := termbox.Init()
 	if err != nil {
 		panic(err)
@@ -166,7 +167,7 @@ func Run() {
 
 	//termbox.Flush()
 
-	cl := newCMDLine("kash> ")   // TODO: read the prompt from outside
+	cl := newCMDLine(prompt)
 
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -175,8 +176,6 @@ func Run() {
 			if ev.Key == exitSignal {
 				return
 			}
-			//fmt.Println("ev.Key", ev.Key, " | ", string(ev.Ch))
-			//continue
 
 			switch ev.Key {
 			case keyLeft:
@@ -187,8 +186,6 @@ func Run() {
 				cl.newLine()
 			case keyBackSpace:
 				cl.backSpace()
-			case keyDelete:
-				fmt.Print("\b\b\b\b\b\b")
 			default:
 				cl.insertChar(ev.Ch)
 			}
