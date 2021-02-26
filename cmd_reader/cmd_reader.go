@@ -195,6 +195,8 @@ func Run(prompt string) {
 				cl.newLine()
 			case keyBackSpace:
 				cl.backSpace()
+			case keyWhiteSpace:
+				cl.insertChar(' ')
 			default:
 				cl.insertChar(ev.Ch)
 			}
