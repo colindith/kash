@@ -126,6 +126,7 @@ func (cl *cmdLine) insertChar(r rune) {
 }
 
 func (cl *cmdLine) backSpace() {
+	// TODO: Code is ugly. Try to sanitize it.
 	if cl.ptr <= 0 {
 		// beep
 		return
@@ -161,11 +162,6 @@ func Run() {
 
 	cl := newCMDLine("kash> ")   // TODO: read the prompt from outside
 
-
-
-
-
-
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
@@ -183,6 +179,8 @@ func Run() {
 				if cl.movePtrTo(cl.ptr+1) {
 					myPrint(cl.buf[cl.ptr+1])
 				}
+			case keyNewLine:
+				cl.newLine()
 			case keyBackSpace:
 				cl.backSpace()
 			case keyDelete:
