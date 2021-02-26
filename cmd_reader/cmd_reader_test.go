@@ -29,47 +29,69 @@ func Test_Color(t *testing.T) {
 }
 
 func Test_cmdLine_backSpace(t *testing.T) {
+	debugFlag = true
+
 	tests := []struct {
-		name     string
-		clBefore *cmdLine
-		clExpected  *cmdLine
+		name       string
+		clBefore   cmdLine
+		clExpected cmdLine
+		vtBefore   virtualTerm
+		vtExpected virtualTerm
 	}{
 		{
 			"left_end",
-			&cmdLine{
+			cmdLine{
 				buf: []rune{1,2,3,4,5,32},
-				tmp: nil,
 				ptr: 0,
 			},
-			&cmdLine{
+			cmdLine{
 				buf: []rune{1,2,3,4,5,32},
-				tmp: nil,
+				ptr: 0,
+			},
+			virtualTerm{
+				buf: []rune{1,2,3,4,5,32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32},
+				ptr: 0,
+			},
+			virtualTerm{
+				buf: []rune{1,2,3,4,5,32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32},
 				ptr: 0,
 			},
 		},
 		{
 			"right_end",
-			&cmdLine{
+			cmdLine{
 				buf: []rune{1,2,3,4,5,32},
-				tmp: nil,
 				ptr: 5,
 			},
-			&cmdLine{
+			cmdLine{
 				buf: []rune{1,2,3,4,32},
-				tmp: nil,
+				ptr: 4,
+			},
+			virtualTerm{
+				buf: []rune{1,2,3,4,5,32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32},
+				ptr: 5,
+			},
+			virtualTerm{
+				buf: []rune{1,2,3,4,32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32},
 				ptr: 4,
 			},
 		},
 		{
 			"middle",
-			&cmdLine{
+			cmdLine{
 				buf: []rune{1,2,3,4,5,32},
-				tmp: nil,
 				ptr: 3,
 			},
-			&cmdLine{
+			cmdLine{
 				buf: []rune{1,2,4,5,32},
-				tmp: nil,
+				ptr: 2,
+			},
+			virtualTerm{
+				buf: []rune{1,2,3,4,5,32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32},
+				ptr: 3,
+			},
+			virtualTerm{
+				buf: []rune{1,2,4,5,32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32},
 				ptr: 2,
 			},
 		},
@@ -77,9 +99,13 @@ func Test_cmdLine_backSpace(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cl := tt.clBefore
+			vt = tt.vtBefore
 			cl.backSpace()
 			if !reflect.DeepEqual(cl, tt.clExpected) {
-				t.Errorf("back_space_not_correct | want=%v | got=%v", tt.clExpected, cl)
+				t.Errorf("back_space_cmd_line_not_correct | want=%v | got=%v", tt.clExpected, cl)
+			}
+			if !reflect.DeepEqual(vt, tt.vtExpected) {
+				t.Errorf("back_space_virtual_term_not_correct | want=%v | got=%v", tt.vtExpected, vt)
 			}
 		})
 	}

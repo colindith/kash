@@ -6,6 +6,11 @@ import (
 	"os"
 )
 
+var (
+	// debugFlag if set to true, the output char will only be write to virtual term. This is used for unit test
+	debugFlag = false
+)
+
 const (
 	exitSignal = 4
 
@@ -26,6 +31,18 @@ const (
 	colorCursor    = "\u001B[1;47m"
 )
 
+func myPrint(a... interface{}) {
+	if debugFlag {
+		vt.printVirtualTerm(a...)
+	}
+	for i := 0; i < len(a); i++ {
+		if r, ok := a[i].(rune); ok {
+			a[i] = string(r)
+		}
+	}
+	fmt.Fprint(os.Stdout, a...)
+}
+
 type cmdLine struct {
 	history [][]rune     // TODO: the history should be saved in hard disk
 	buf []rune           // The final of buf should always be ' '
@@ -36,14 +53,6 @@ type cmdLine struct {
 	promptStr string
 }
 
-func myPrint(a... interface{}) {
-	for i := 0; i < len(a); i++ {
-		if r, ok := a[i].(rune); ok {
-			a[i] = string(r)
-		}
-	}
-	fmt.Fprint(os.Stdout, a...)
-}
 
 func newCMDLine(prompt string) *cmdLine {
 	cl := &cmdLine{}
@@ -121,11 +130,6 @@ func (cl *cmdLine) backSpace() {
 		// beep
 		return
 	}
-	if cl.ptr == len(cl.buf) - 1 {
-		myPrint("\b \b")
-		cl.ptr--
-		return
-	}
 
 	cl.back(1)
 	tmpPtr := cl.ptr
@@ -141,10 +145,6 @@ func (cl *cmdLine) backSpace() {
 		myPrint('\b')
 	}
 }
-
-//func pop(slice []rune) rune {
-//
-//}
 
 func Run() {
 	err := termbox.Init()
