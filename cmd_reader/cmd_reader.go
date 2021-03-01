@@ -370,7 +370,7 @@ func checkMatch(ptr *node, s []rune) bool {
 	if ptr == nil {
 		return false
 	}
-	if len(ptr.val) > len(s) {
+	if len(ptr.val) <= len(s) {
 		return false
 	}
 	match := true

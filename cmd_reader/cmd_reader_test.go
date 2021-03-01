@@ -276,3 +276,154 @@ func Test_cmdLine_backSpace(t *testing.T) {
 		})
 	}
 }
+
+func Test_checkMatch(t *testing.T) {
+	tests := []struct{
+		name string
+		ptr  *node
+		s    []rune
+		want bool
+	}{
+		{
+			name: "nil_node",
+			ptr:  nil,
+			s:    []rune{1, 2},
+			want: false,
+		},
+		{
+			name: "short_match",
+			ptr:  &node{val: []rune{1, 2, 3}},
+			s:    []rune{1, 2},
+			want: true,
+		},
+		{
+			name: "short_not_match",
+			ptr:  &node{val: []rune{1, 2, 3}},
+			s:    []rune{1, 4},
+			want: false,
+		},
+		{
+			name: "equal_not_match",
+			ptr:  &node{val: []rune{1, 2, 3}},
+			s:    []rune{1, 2, 3},
+			want: false,
+		},
+		{
+			name: "long_not_match",
+			ptr:  &node{val: []rune{1, 2, 3}},
+			s:    []rune{1, 2, 3, 4},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if checkMatch(tt.ptr, tt.s) != tt.want {
+				t.Errorf("check_match_not_correct | want=%v | got=%v", tt.want, !tt.want)
+			}
+		})}
+}
+
+func Test_history_searchUp(t *testing.T) {
+	node1 := &node{val: []rune{1, 2, 3}}
+	node2 := &node{val: []rune{4, 5, 6}}
+	node3 := &node{val: []rune{1, 2, 3, 4, 5}}
+
+	node1.next = node2
+	node2.next = node3
+	node2.prev = node1
+	node3.prev = node2
+
+	tests := []struct{
+		name         string
+		hBefore      *history
+		hAfter       *history
+		result       []rune
+		foundResult  bool
+		preserveZero bool
+	}{
+		{
+			"empty history",
+			&history{
+				head: nil,
+				len:  0,
+				ptr:  nil,
+			},
+			&history{
+				head: nil,
+				len:  0,
+				ptr:  nil,
+			},
+			nil,
+			false,
+			false,
+		},
+		{
+			"zero to 1st level",
+			&history{
+				head: node1,
+				len:  3,
+				ptr:  nil,
+			},
+			&history{
+				head: node1,
+				len:  3,
+				ptr:  node1,
+			},
+			[]rune{1, 2, 3},
+			true,
+			true,
+		},
+		{
+			"1st to 3rd level",
+			&history{
+				head: node1,
+				len:  3,
+				ptr:  node1,
+			},
+			&history{
+				head: node1,
+				len:  3,
+				ptr:  node3,
+			},
+			[]rune{1, 2, 3, 4, 5},
+			true,
+			false,
+		},
+		{
+			"3rd level",
+			&history{
+				head: node1,
+				len:  3,
+				ptr:  node3,
+			},
+			&history{
+				head: node1,
+				len:  3,
+				ptr:  node3,
+			},
+			nil,
+			false,
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := tt.hBefore
+			result, foundResult, preserveZero := h.searchUp([]rune{1, 2})
+			if !reflect.DeepEqual(h, tt.hAfter) {
+				t.Errorf("h_after_not_correct | want=%v | got=%v", *tt.hAfter, *h)
+			}
+			if !reflect.DeepEqual(result, tt.result) {
+				t.Errorf("result_not_correct | want=%v | got=%v", tt.result, result)
+			}
+			if foundResult != tt.foundResult {
+				t.Errorf("foundResult_not_correct | want=%v | got=%v", tt.foundResult, foundResult)
+			}
+			if preserveZero != tt.preserveZero {
+				t.Errorf("preserveZero_not_correct | want=%v | got=%v", tt.preserveZero, preserveZero)
+			}
+		})
+	}
+}
