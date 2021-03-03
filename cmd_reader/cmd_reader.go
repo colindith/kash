@@ -46,6 +46,31 @@ func myPrint(a... interface{}) {
 	fmt.Fprint(os.Stdout, a...)
 }
 
+type Config struct {
+	prompt string
+	handlers []*Handler
+}
+
+func (cfg *Config) SetPromptStr(prompt string) {
+	cfg.prompt = prompt
+}
+
+func (cfg *Config) RegistryHandler(h *Handler) error {
+	if err := validateHandler(h); err != nil {
+		return err
+	}
+	cfg.handlers = append(cfg.handlers, h)
+	return nil
+}
+
+func validateHandler(h *Handler) error {
+	if h == nil {
+		return fmt.Errorf("invalid nil handler")
+	}
+	// TODO: implement this
+	return nil
+}
+
 type cmdLine struct {
 	history history
 
@@ -54,15 +79,22 @@ type cmdLine struct {
 	ptr int
 
 	promptStr string
+	handlers []*Handler
 }
 
 
-func newCMDLine(prompt string) *cmdLine {
+func newCMDLine(cfg *Config) *cmdLine {
+	if cfg == nil {
+		cfg = &Config{
+			prompt: ">",
+		}
+	}
 	cl := &cmdLine{}
-	cl.setPromptStr(prompt)
+	cl.setPromptStr(cfg.prompt)
 	cl.resetBufAndPrintPrompt()
 	cl.initHistory()
 	cl.blink(true)
+	cl.handlers = cfg.handlers
 	return cl
 }
 
@@ -229,7 +261,24 @@ func (cl *cmdLine) preserve() {
 	copy(cl.tmp, cl.buf)
 }
 
-func Run(prompt string) {
+// *** cmdLine handle *** //
+func (cl *cmdLine) handle(buf string) {
+	if len(cl.handlers) == 0 {
+		return
+	}
+	// TODO: should implement a router to the different handlers
+	result, err := cl.handlers[0].Serv(buf)
+	if err != nil {
+		// TODO: log the error
+		return
+	}
+	if len(result) != 0 {
+		myPrint("\n")
+		myPrint(result)
+	}
+}
+
+func Run(cfg *Config) {
 	err := termbox.Init()
 	if err != nil {
 		panic(err)
@@ -242,7 +291,7 @@ func Run(prompt string) {
 
 	//termbox.Flush()
 
-	cl := newCMDLine(prompt)
+	cl := newCMDLine(cfg)
 
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -258,7 +307,9 @@ func Run(prompt string) {
 			case keyRight:
 				cl.moveRight()
 			case keyNewLine:
+				buf := cl.buf
 				cl.pushHistory()
+				cl.handle(string(buf))
 				cl.newLine()
 			case keyBackSpace:
 				cl.backSpace()
@@ -382,3 +433,12 @@ func checkMatch(ptr *node, s []rune) bool {
 	}
 	return match
 }
+
+
+// *** Handler struct *** //
+type Handler struct {
+	// TODO: check how to route the cmd to handler
+	Serv Serv
+}
+
+type Serv func(cmd string) (result string, err error)
