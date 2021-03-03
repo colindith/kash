@@ -379,18 +379,19 @@ func (h *history) searchUp(s []rune) (result []rune, foundResult bool, preserveZ
 
 func (h *history) searchDown(s []rune) (result []rune, foundResult bool, retrieveZero bool) {
 	if h.ptr == nil {
+		// in zero
 		return nil, false, false
 	}
-	ptr := h.ptr
+	ptr := h.ptr.prev
 	for {
+		if ptr == nil {
+			// reach head
+			h.ptr = nil      // set ptr to nil for next searchUp call
+			return nil, false, true
+		}
 		if checkMatch(ptr, s) {
 			h.ptr = ptr
 			return ptr.val, true, false
-		}
-		if ptr.prev == nil {
-			// reach head
-			ptr = nil      // set ptr  to nil for next searchUp call
-			return nil, false, true
 		}
 		ptr = ptr.prev
 	}
