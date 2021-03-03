@@ -9,7 +9,7 @@ import (
 )
 
 func Test_runTCPServer(t *testing.T) {
-	StartKashServer()
+	StartKashServer(connPort)
 
 	conn, err := net.DialTimeout("tcp", connHost+ ":" +connPort, 10 * time.Second)
 	if err != nil {

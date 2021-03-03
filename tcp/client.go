@@ -1,33 +1,11 @@
-package main
+package tcp
 
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"net"
 	"time"
-
-	"github.com/colindith/kash/cmd_reader"
 )
-
-// TODO: The client package should start a cmd line process and let users type the cmd in the cmd line.
-// TODO: The cmd line should be provide some basic functions like using upper arrow key to find the history and and using left/right arrow to move the cursor
-
-func main() {
-	cfg := &cmd_reader.Config{}
-	cfg.SetPromptStr("kash>")    // TODO: The prompt should be get from the remote domain/IP address
-	if err := cfg.RegistryHandler(handler); err != nil {
-		log.Fatalf("registor cmd reader handler fail | err=%v", err.Error())
-		return
-	}
-
-	cmd_reader.Run(cfg)
-}
-
-var handler = &cmd_reader.Handler{Serv: func(cmd string) (result string, err error) {
-	// call the tcp method to send cmd
-	return "", nil
-}}
 
 // SendTCPCmd send the cmd to the remote tcp server and close the connection immediately
 func SendTCPCmd(host string, port string, cmd string) {
