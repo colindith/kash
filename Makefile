@@ -1,5 +1,5 @@
 all:
-	rm -r cmd/server
-	rm -r cmd/client
-	go build tcp/server.go -o cmd/server
-	./cmd/server
+	rm -rf bin/server
+	rm -rf bin/client
+	go build -o bin/server server/server.go
+	go build -o bin/client client/client.go
