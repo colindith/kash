@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"io"
 	"log"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/colindith/kash/store"
@@ -69,19 +71,22 @@ func handleConnection(c net.Conn) {
 	defer c.Close()
 	for {
 		netData, err := bufio.NewReader(c).ReadBytes('\n')
+		if err == io.EOF {
+			return
+		}
 		if err != nil {
-			log.Fatalf("bufio_read_bytes_error | err=%v", err.Error())
+			log.Printf("bufio_read_bytes_error | err=%v", err.Error())    // TODO: This is client input problem. Should not be error
 			return
 		}
 
-		args := bytes.Split(netData[:len(netData)-1], []byte{' '})
+		args := bytes.Split(bytes.Trim(netData[:len(netData)-1], " "), []byte{' '})
 		if string(args[0]) == "STOP" {
 			break
 		}
 
 		result := respOK
 		var errMsg string
-		handler, ok := cmdHandlerRouter[string(args[0])]
+		handler, ok := cmdHandlerRouter[strings.ToUpper(string(args[0]))]
 		if !ok {
 			result = []byte("cmd not recognized")
 		} else {
@@ -90,6 +95,7 @@ func handleConnection(c net.Conn) {
 				result = []byte(errMsg)
 			}
 		}
+		result = append(result, byte('\n'))
 
 		_, err = c.Write(result)
 		if err != nil {
@@ -136,18 +142,18 @@ func handleSETCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
 	if len(params) == 2 {
 		err := shardedMapStore.Set(key, params[1])
 		if err != nil {
-			log.Printf("handler_set_cmd_failed | msg=%v", err.Error())
+			log.Printf("set_cmd_failed | msg=%v", err.Error())
 			return nil, err.Error(), false
 		}
 	} else if len(params) == 3 {
 		timeout, err := strconv.Atoi(string(params[2]))
 		if err != nil {
-			log.Printf("handler_set_cmd_failed | msg=%v", err.Error())
-			return nil, err.Error(), false
+			log.Printf("parse_timeout_failed | msg=%v", err.Error())
+			return nil, "invalid timeout", false
 		}
 		err = shardedMapStore.SetWithTimeout(key, params[1], time.Duration(timeout)*time.Second)
 		if err != nil {
-			log.Printf("handler_set_cmd_failed | msg=%v", err.Error())
+			log.Printf("set_with_timeout_cmd_failed | msg=%v", err.Error())
 			return nil, err.Error(), false
 		}
 	}
