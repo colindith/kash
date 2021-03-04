@@ -46,6 +46,13 @@ func myPrint(a... interface{}) {
 	fmt.Fprint(os.Stdout, a...)
 }
 
+func myPrintN(a rune, n int) {
+	for n > 0 {
+		myPrint(a)
+		n--
+	}
+}
+
 type Config struct {
 	prompt string
 	handlers []*Handler
@@ -212,33 +219,49 @@ func (cl *cmdLine) searchHistoryUp() {
 	if preserveZero {
 		cl.preserve()
 	}
+	eraseTailLen := 0
+	if len(cl.buf) - 1 > len(result)  {
+		eraseTailLen = len(cl.buf) - len(result) - 1
+	}
 	cl.copyToBuf(result)
 
 	// print new buf
 	myPrint(cl.buf)    // buf contains ' ' in the end
-	myPrint('\b')
+	myPrintN(' ', eraseTailLen)
+	myPrintN('\b', eraseTailLen + 1)
 	cl.ptr = len(cl.buf) - 1
 }
 
 func (cl *cmdLine) searchHistoryDown() {
+	result, foundResult, retrieveZero := cl.history.searchDown()
+
+	if !(foundResult || retrieveZero) {
+		return
+	}
 	// move cursor back to 0
 	cl.back(cl.ptr)
 
-	result, foundResult, retrieveZero := cl.history.searchDown()
-	if foundResult {
-		cl.copyToBuf(result)
+	var eraseTailLen int
 
-		// print new buf
-		myPrint(cl.buf)
-		cl.ptr = len(cl.buf)
+	if foundResult {
+		if len(cl.buf) - 1 > len(result) {
+			eraseTailLen = len(cl.buf) - len(result) + 1
+		}
+		cl.copyToBuf(result)
 	}
+
 	if retrieveZero {
+		if len(cl.buf) - 1 > len(cl.tmp) {
+			eraseTailLen = len(cl.buf) - len(cl.tmp) + 1
+		}
 		cl.copyToBuf(cl.tmp)
 	}
 
 	// print new buf
 	myPrint(cl.buf)
-	cl.ptr = len(cl.buf)
+	myPrintN(' ', eraseTailLen)
+	myPrintN('\b', eraseTailLen + 1)
+	cl.ptr = len(cl.buf) - 1
 }
 
 func (cl *cmdLine) copyToBuf(s []rune) {
@@ -252,13 +275,15 @@ func (cl *cmdLine) copyToBuf(s []rune) {
 
 // pushHistory push the current typing back to the head of history list
 func (cl *cmdLine) pushHistory() {
-	cl.history.pushFront(cl.buf)
+	if len(cl.buf) >= 1 {
+		cl.history.pushFront(cl.buf[:len(cl.buf)-1])   // exclude the last ' '
+	}
 }
 
 // preserve store the current typing into a temporary location so that cl.buf can be load with historical cmds
 func (cl *cmdLine) preserve() {
-	cl.tmp = make([]rune, len(cl.buf))
-	copy(cl.tmp, cl.buf)
+	cl.tmp = make([]rune, len(cl.buf)-1)
+	copy(cl.tmp, cl.buf[:len(cl.buf)-1])
 }
 
 // *** cmdLine handle *** //
