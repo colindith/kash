@@ -14,6 +14,12 @@ type virtualTerm struct {
 }
 
 func (vt *virtualTerm) printVirtualTerm(a... interface{}) {
+	if len(vt.buf) == 0 {
+		vt.buf = make([]rune, 16)
+		for i := range vt.buf {
+			vt.buf[i] = ' '
+		}
+	}
 	for _, arg := range a {
 		switch v := arg.(type) {
 		case rune:
