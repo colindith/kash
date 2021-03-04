@@ -277,6 +277,123 @@ func Test_cmdLine_backSpace(t *testing.T) {
 	}
 }
 
+func Test_cmdLine_searchHistoryUp(t *testing.T) {
+	debugFlag = true
+
+	node1 := &node{val: []rune{1, 2, 3}}
+	node2 := &node{val: []rune{4, 5, 6}}
+	node3 := &node{val: []rune{1, 2, 3, 4, 5}}
+
+	node1.next = node2
+	node2.next = node3
+	node2.prev = node1
+	node3.prev = node2
+
+	tests := []struct {
+		name       string
+		clBefore   cmdLine
+		clExpected cmdLine
+		vtBefore   virtualTerm
+		vtExpected virtualTerm
+	}{
+		{
+			"zero to 1st level",
+			cmdLine{
+				buf: []rune{1, 2, 32},
+				ptr: 2,
+				history: history{
+					head: node1,
+					len:  3,
+					ptr:  nil,
+					match: []rune{1, 2},
+				},
+			},
+			cmdLine{
+				buf: []rune{1, 2, 3, 32},
+				ptr: 3,
+				history: history{
+					head: node1,
+					len:  3,
+					ptr:  node1,
+					match: []rune{1, 2},
+				},
+				tmp: []rune{1, 2, 32},
+			},
+			virtualTerm{
+				buf: []rune{1, 2, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32},
+				ptr: 2,
+			},
+			virtualTerm{
+				buf: []rune{1, 2, 3, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32},
+				ptr: 3,
+			},
+		},
+		{
+			"1st to 3rd level",
+			cmdLine{
+				buf: []rune{1, 2, 3, 32},
+				ptr: 3,
+				history: history{
+					head: node1,
+					len:  3,
+					ptr:  node1,
+					match: []rune{1, 2},
+				},
+			},
+			cmdLine{
+				buf: []rune{1, 2, 3, 4, 5, 32},
+				ptr: 5,
+				history: history{
+					head: node1,
+					len:  3,
+					ptr:  node3,
+					match: []rune{1, 2},
+				},
+			},
+			virtualTerm{
+				buf: []rune{1, 2, 3, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32},
+				ptr: 3,
+			},
+			virtualTerm{
+				buf: []rune{1, 2, 3, 4, 5, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32},
+				ptr: 5,
+			},
+		},
+		{
+			"tail",
+			cmdLine{
+				buf: []rune{1, 2, 3, 4, 5, 32},
+				ptr: 5,
+			},
+			cmdLine{
+				buf: []rune{1, 2, 3, 4, 5, 32},
+				ptr: 5,
+			},
+			virtualTerm{
+				buf: []rune{1, 2, 3, 4, 5, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32},
+				ptr: 5,
+			},
+			virtualTerm{
+				buf: []rune{1, 2, 3, 4, 5, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32},
+				ptr: 5,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cl := tt.clBefore
+			vt = tt.vtBefore
+			cl.searchHistoryUp()
+			if !reflect.DeepEqual(cl, tt.clExpected) {
+				t.Errorf("search_history_up_cmd_line_not_correct | want=%v | got=%v", tt.clExpected, cl)
+			}
+			if !reflect.DeepEqual(vt, tt.vtExpected) {
+				t.Errorf("search_history_up_virtual_term_not_correct | want=%v | got=%v", tt.vtExpected, vt)
+			}
+		})
+	}
+}
+
 func Test_checkMatch(t *testing.T) {
 	tests := []struct{
 		name string
@@ -348,11 +465,13 @@ func Test_history_searchUp(t *testing.T) {
 				head: nil,
 				len:  0,
 				ptr:  nil,
+				match: []rune{1, 2},
 			},
 			&history{
 				head: nil,
 				len:  0,
 				ptr:  nil,
+				match: []rune{1, 2},
 			},
 			nil,
 			false,
@@ -364,11 +483,13 @@ func Test_history_searchUp(t *testing.T) {
 				head: node1,
 				len:  3,
 				ptr:  nil,
+				match: []rune{1, 2},
 			},
 			&history{
 				head: node1,
 				len:  3,
 				ptr:  node1,
+				match: []rune{1, 2},
 			},
 			[]rune{1, 2, 3},
 			true,
@@ -380,11 +501,13 @@ func Test_history_searchUp(t *testing.T) {
 				head: node1,
 				len:  3,
 				ptr:  node1,
+				match: []rune{1, 2},
 			},
 			&history{
 				head: node1,
 				len:  3,
 				ptr:  node3,
+				match: []rune{1, 2},
 			},
 			[]rune{1, 2, 3, 4, 5},
 			true,
@@ -396,11 +519,13 @@ func Test_history_searchUp(t *testing.T) {
 				head: node1,
 				len:  3,
 				ptr:  node3,
+				match: []rune{1, 2},
 			},
 			&history{
 				head: node1,
 				len:  3,
 				ptr:  node3,
+				match: []rune{1, 2},
 			},
 			nil,
 			false,
@@ -411,7 +536,7 @@ func Test_history_searchUp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := tt.hBefore
-			result, foundResult, preserveZero := h.searchUp([]rune{1, 2})
+			result, foundResult, preserveZero := h.searchUp()
 			if !reflect.DeepEqual(h, tt.hAfter) {
 				t.Errorf("h_after_not_correct | want=%v | got=%v", *tt.hAfter, *h)
 			}
@@ -453,11 +578,13 @@ func Test_history_searchDown(t *testing.T) {
 				head: nil,
 				len:  0,
 				ptr:  nil,
+				match: []rune{1, 2},
 			},
 			&history{
 				head: nil,
 				len:  0,
 				ptr:  nil,
+				match: []rune{1, 2},
 			},
 			nil,
 			false,
@@ -469,11 +596,13 @@ func Test_history_searchDown(t *testing.T) {
 				head: node1,
 				len:  3,
 				ptr:  node1,
+				match: []rune{1, 2},
 			},
 			&history{
 				head: node1,
 				len:  3,
 				ptr:  nil,
+				match: []rune{1, 2},
 			},
 			nil,
 			false,
@@ -485,11 +614,13 @@ func Test_history_searchDown(t *testing.T) {
 				head: node1,
 				len:  3,
 				ptr:  node3,
+				match: []rune{1, 2},
 			},
 			&history{
 				head: node1,
 				len:  3,
 				ptr:  node1,
+				match: []rune{1, 2},
 			},
 			[]rune{1, 2, 3},
 			true,
@@ -501,11 +632,13 @@ func Test_history_searchDown(t *testing.T) {
 				head: node1,
 				len:  3,
 				ptr:  nil,
+				match: []rune{1, 2},
 			},
 			&history{
 				head: node1,
 				len:  3,
 				ptr:  nil,
+				match: []rune{1, 2},
 			},
 			nil,
 			false,
@@ -516,7 +649,7 @@ func Test_history_searchDown(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := tt.hBefore
-			result, foundResult, preserveZero := h.searchDown([]rune{1, 2})
+			result, foundResult, preserveZero := h.searchDown()
 			if !reflect.DeepEqual(h, tt.hAfter) {
 				t.Errorf("h_after_not_correct | want=%v | got=%v", *tt.hAfter, *h)
 			}

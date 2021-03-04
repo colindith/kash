@@ -201,30 +201,30 @@ func (cl *cmdLine) initHistory() {
 }
 
 func (cl *cmdLine) searchHistoryUp() {
-	// move cursor back to 0
-	cl.back(cl.ptr)
-
-	result, foundResult, preserveZero := cl.history.searchUp(cl.buf[:len(cl.buf)-1])
+	result, foundResult, preserveZero := cl.history.searchUp()
 	if !foundResult {
 		// not find any match
 		// beep?
 		return
 	}
+	// move cursor back to 0
+	cl.back(cl.ptr)
 	if preserveZero {
 		cl.preserve()
 	}
 	cl.copyToBuf(result)
 
 	// print new buf
-	myPrint(cl.buf)
-	cl.ptr = len(cl.buf)
+	myPrint(cl.buf)    // buf contains ' ' in the end
+	myPrint('\b')
+	cl.ptr = len(cl.buf) - 1
 }
 
 func (cl *cmdLine) searchHistoryDown() {
 	// move cursor back to 0
 	cl.back(cl.ptr)
 
-	result, foundResult, retrieveZero := cl.history.searchDown(cl.buf[:len(cl.buf)-1])
+	result, foundResult, retrieveZero := cl.history.searchDown()
 	if foundResult {
 		cl.copyToBuf(result)
 
@@ -246,8 +246,8 @@ func (cl *cmdLine) copyToBuf(s []rune) {
 		cl.buf = make([]rune, len(s)+1)
 	}
 	copy(cl.buf, s)
+	cl.buf[len(s)] = ' '
 	cl.buf = cl.buf[:len(s)+1]
-	cl.buf[len(cl.buf)] = ' '
 }
 
 // pushHistory push the current typing back to the head of history list
@@ -325,6 +325,7 @@ func Run(cfg *Config) {
 				cl.insertChar(ev.Ch)
 			}
 		}
+		cl.history.setMatchStr(cl.buf[:cl.ptr])
 		cl.blink(true)
 	}
 }
@@ -343,6 +344,8 @@ type history struct {
 	head *node
 	len  int
 	ptr  *node     // ptr is the pointer used when navigating the history list
+
+	match []rune   // match is used when searching next/prev history cmd
 }
 
 func (h *history) resetPtr() {
@@ -350,7 +353,12 @@ func (h *history) resetPtr() {
 	h.ptr = h.head
 }
 
-func (h *history) searchUp(s []rune) (result []rune, foundResult bool, preserveZero bool) {
+func (h *history) setMatchStr(s []rune) {
+	// This method should be called when move cursor right or left (including insert char and new line)
+	h.match = s
+}
+
+func (h *history) searchUp() (result []rune, foundResult bool, preserveZero bool) {
 	// The "preserveZero" means the cmdLine is moving from current tying stuff to the first level history
 	// So the cmdLine should preserve the current buffer stuff in a temporary location
 	var ptr *node
@@ -369,7 +377,7 @@ func (h *history) searchUp(s []rune) (result []rune, foundResult bool, preserveZ
 			// reach tail
 			return nil, false, false
 		}
-		if checkMatch(ptr, s) {
+		if checkMatch(ptr, h.match) {
 			h.ptr = ptr
 			return ptr.val, true, preserveZero
 		}
@@ -377,7 +385,7 @@ func (h *history) searchUp(s []rune) (result []rune, foundResult bool, preserveZ
 	}
 }
 
-func (h *history) searchDown(s []rune) (result []rune, foundResult bool, retrieveZero bool) {
+func (h *history) searchDown() (result []rune, foundResult bool, retrieveZero bool) {
 	if h.ptr == nil {
 		// in zero
 		return nil, false, false
@@ -389,7 +397,7 @@ func (h *history) searchDown(s []rune) (result []rune, foundResult bool, retriev
 			h.ptr = nil      // set ptr to nil for next searchUp call
 			return nil, false, true
 		}
-		if checkMatch(ptr, s) {
+		if checkMatch(ptr, h.match) {
 			h.ptr = ptr
 			return ptr.val, true, false
 		}
