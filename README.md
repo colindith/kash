@@ -1,4 +1,4 @@
-Kash golang thread-safe in-memory cache
+Kash golang in-memory cache
 ==
 ## In-memory Cache
 ### Usage
@@ -27,5 +27,21 @@ s.Delete("key1")
 * Features dumping all data into JSON format
 * Support cache key with/without timeout
 
-## Cache TCP Server
-WIP
+## Cache TCP Server/Client CLI
+### Usage
+```bash
+cd kash && make
+
+// Start the TCP server
+./bin/server
+
+// Start the client CLI
+./bin/client
+
+Ctl+D to exit
+```
+![screenshot](/cli.png)
+
+### Features
+* Support basic cli function
+* Up/down arrow key to find the cmd line history
