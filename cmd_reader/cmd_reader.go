@@ -438,12 +438,12 @@ func (h *history) pushFront(s []rune) {
 		prev: nil,
 		val:  s,
 	}
-	h.head = newHead
-	h.len++
 	if h.head != nil {
 		// Not empty history
 		h.head.prev = newHead
 	}
+	h.head = newHead
+	h.len++
 }
 
 func (h *history) autoComplete(s []rune) ([]rune, bool) {

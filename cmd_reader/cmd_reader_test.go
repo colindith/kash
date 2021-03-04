@@ -819,3 +819,90 @@ func Test_history_searchDown(t *testing.T) {
 		})
 	}
 }
+
+func Test_history_pushFront(t *testing.T) {
+	node1 := &node{val: []rune{1, 2, 3}}
+	node2 := &node{val: []rune{4, 5, 6}}
+	node3 := &node{val: []rune{1, 2, 3, 4, 5}}
+
+	node1.next = node2
+	node2.next = node3
+	node2.prev = node1
+	node3.prev = node2
+
+	tests := []struct{
+		name         string
+		hBefore      *history
+		hAfter       *history
+		buf          []rune
+	}{
+		{
+			"empty history",
+			&history{
+				head: nil,
+				len:  0,
+				ptr:  nil,
+			},
+			&history{
+				head: &node{
+					next: nil,
+					prev: nil,
+					val: []rune{3, 3, 3, 3},
+				},
+				len:  1,
+				ptr:  nil,
+			},
+			[]rune{3, 3, 3, 3},
+		},
+		{
+			"not empty history",
+			&history{
+				head: node1,
+				len:  3,
+				ptr:  nil,
+				match: []rune{1, 2},
+			},
+			&history{
+				head: &node{
+					next: node1,
+					prev: nil,
+					val: []rune{3, 3, 3, 3},
+				},
+				len:  4,
+				ptr:  nil,
+				match: []rune{1, 2},
+			},
+			[]rune{3, 3, 3, 3},
+		},
+		{
+			"not empty history and ptr not nil",
+			&history{
+				head: node1,
+				len:  3,
+				ptr:  node2,
+				match: []rune{1, 2},
+			},
+			&history{
+				head: &node{
+					next: node1,
+					prev: nil,
+					val: []rune{3, 3, 3, 3},
+				},
+				len:  4,
+				ptr:  node2,
+				match: []rune{1, 2},
+			},
+			[]rune{3, 3, 3, 3},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := tt.hBefore
+			h.pushFront(tt.buf)
+			if !reflect.DeepEqual(h, tt.hAfter) {
+				t.Errorf("h_after_not_correct | want=%v | got=%v", *tt.hAfter, *h)
+			}
+		})
+	}
+}
