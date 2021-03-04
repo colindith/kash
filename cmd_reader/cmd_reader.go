@@ -113,7 +113,7 @@ func (cl *cmdLine) resetBufAndPrintPrompt() {
 }
 
 func (cl *cmdLine) printPrompt() {
-	myPrint(cl.promptStr)
+	myPrint(cl.promptStr, ' ')
 }
 
 func (cl *cmdLine) setPromptStr(prompt string) {
@@ -275,7 +275,7 @@ func (cl *cmdLine) copyToBuf(s []rune) {
 
 // pushHistory push the current typing back to the head of history list
 func (cl *cmdLine) pushHistory() {
-	if len(cl.buf) >= 1 {
+	if len(cl.buf) > 1 {
 		cl.history.pushFront(cl.buf[:len(cl.buf)-1])   // exclude the last ' '
 	}
 }
@@ -319,7 +319,8 @@ func Run(cfg *Config) {
 	cl := newCMDLine(cfg)
 
 	for {
-		switch ev := termbox.PollEvent(); ev.Type {
+		ev := termbox.PollEvent()
+		switch ev.Type {
 		case termbox.EventKey:
 			cl.blink(false)
 			if ev.Key == exitSignal {
@@ -350,7 +351,9 @@ func Run(cfg *Config) {
 				cl.insertChar(ev.Ch)
 			}
 		}
-		cl.history.setMatchStr(cl.buf[:cl.ptr])
+		if ev.Key != keyUp && ev.Key != keyDown {
+			cl.history.setMatchStr(cl.buf[:cl.ptr])
+		}
 		cl.blink(true)
 	}
 }
@@ -375,7 +378,7 @@ type history struct {
 
 func (h *history) resetPtr() {
 	// This method should be called when create a new line (enter or Ctl+C)
-	h.ptr = h.head
+	h.ptr = nil
 }
 
 func (h *history) setMatchStr(s []rune) {
