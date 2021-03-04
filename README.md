@@ -28,6 +28,7 @@ s.Delete("key1")
 * Support cache key with/without timeout
 
 ## Cache TCP Server/Client CLI
+Connect to cache storage through TCP protocol.
 ### Usage
 ```bash
 cd kash && make
