@@ -291,6 +291,9 @@ func (cl *cmdLine) handle(buf string) {
 	if len(cl.handlers) == 0 {
 		return
 	}
+	if len(buf) <= 1 {
+		return
+	}
 	// TODO: should implement a router to the different handlers
 	result, err := cl.handlers[0].Serv(buf)
 	if err != nil {
