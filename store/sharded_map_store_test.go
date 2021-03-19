@@ -10,62 +10,62 @@ import (
 func Test_shardedMapStoreGetAndSetFlow(t *testing.T) {
 	s := GetShardedMapStore()
 	// Get key from empty store
-	v, err := s.Get("123")
-	if err == nil || err.Error() != "error_cache_not_found" {
-		t.Errorf("should_be_error_cache_not_found, got: %v", err)
+	v, code := s.Get("123")
+	if code != KeyNotFound {
+		t.Errorf("should_be_error_cache_not_found, got: %v", code)
 	}
 	if v != nil {
 		t.Errorf("value_should_be_nil, got: %v", v)
 	}
 
 	// set the key
-	err = s.SetWithTimeout("123", map[string]string{"jack": "box"}, 1 * time.Minute)
-	if err != nil {
-		t.Errorf("set_cache_error, err: %v", err)
+	code = s.SetWithTimeout("123", map[string]string{"jack": "box"}, 1 * time.Minute)
+	if code != Success {
+		t.Errorf("set_cache_error, code: %v", code)
 	}
 
 	// Get the key just set
-	v, err = s.Get("123")
-	if err != nil {
-		t.Errorf("Get_cache_error, err: %v", err)
+	v, code = s.Get("123")
+	if code != Success {
+		t.Errorf("Get_cache_error, code: %v", code)
 	}
 	if !reflect.DeepEqual(v, map[string]string{"jack": "box"}) {
 		t.Errorf("get_cache_value_incorrect, value: %v, want: %v", v, map[string]string{"jack": "box"})
 	}
 
 	// delete key
-	err = s.Delete("123")
-	if err != nil {
-		t.Errorf("delete_cache_error, err: %v", err)
+	code = s.Delete("123")
+	if code != Success {
+		t.Errorf("delete_cache_error, code: %v", code)
 	}
 
 	// Get the deleted key
-	v, err = s.Get("123")
-	if err == nil || err.Error() != "error_cache_not_found" {
-		t.Errorf("should_be_error_cache_not_found, got: %v", err)
+	v, code = s.Get("123")
+	if code != KeyNotFound {
+		t.Errorf("should_be_error_cache_not_found, got: %v", code)
 	}
 }
 
 func Test_shardedMapStore_eviction(t *testing.T) {
 	s := GetShardedMapStore()
-	err := s.SetWithTimeout("evicted_key", "box", 100*time.Millisecond)
-	if err != nil {
-		t.Errorf("set_cache_error, err: %v", err)
+	code := s.SetWithTimeout("evicted_key", "box", 100*time.Millisecond)
+	if code != Success {
+		t.Errorf("set_cache_error, code: %v", code)
 	}
 	time.Sleep(100*time.Millisecond)
 
 	i := 0
 	for i < 101 {
-		err = s.SetWithTimeout("123", "box", 100*time.Millisecond)
-		if err != nil {
-			t.Errorf("set_cache_error, err: %v", err)
+		code = s.SetWithTimeout("123", "box", 100*time.Millisecond)
+		if code != Success {
+			t.Errorf("set_cache_error, code: %v", code)
 		}
 		i++
 	}
 	// cache key were expired
-	_, err = s.Get("evicted_key")
-	if err == nil || err.Error() != "error_cache_not_found" {
-		t.Errorf("cache_key_should_expired, err: %v", err)
+	_, code = s.Get("evicted_key")
+	if code != KeyNotFound {
+		t.Errorf("cache_key_should_expired, code: %v", code)
 	}
 	// Should trigger eviction
 	want := "{\"123\":\"box\"}"
@@ -78,14 +78,14 @@ func Test_shardedMapStore_SetDefaultTime(t *testing.T) {
 	s := GetShardedMapStore(SetDefaultTimeout(100 * time.Millisecond))
 
 	// set key with default timeout
-	err := s.Set("default_timeout", "box")
-	if err != nil {
-		t.Errorf("set_cache_error, err: %v", err)
+	code := s.Set("default_timeout", "box")
+	if code != Success {
+		t.Errorf("set_cache_error, code: %v", code)
 	}
 	// get key right after set
-	v, err := s.Get("default_timeout")
-	if err != nil {
-		t.Errorf("get_cache_error, err: %v", err)
+	v, code := s.Get("default_timeout")
+	if code != Success {
+		t.Errorf("get_cache_error, code: %v", code)
 	}
 	if !reflect.DeepEqual(v, "box") {
 		t.Errorf("get_cache_value_incorrect, value: %v, want: %v", v, "box")
@@ -93,9 +93,9 @@ func Test_shardedMapStore_SetDefaultTime(t *testing.T) {
 	time.Sleep(100*time.Millisecond)
 
 	// get again after timeout
-	_, err = s.Get("default_timeout")
-	if err == nil || err.Error() != "error_cache_not_found" {
-		t.Errorf("cache_key_should_expired, err: %v", err)
+	_, code = s.Get("default_timeout")
+	if code != KeyNotFound {
+		t.Errorf("cache_key_should_expired, code: %v", code)
 	}
 }
 
@@ -105,18 +105,18 @@ func Test_shardedMapStore_SetDefaultTime(t *testing.T) {
 func Test_DumpAllJSON(t *testing.T) {
 	s := GetShardedMapStore()
 
-	err := s.Set("Best", "Bites!")
-	if err != nil {
-		t.Errorf("set_cache_error, err: %v", err)
+	code := s.Set("Best", "Bites!")
+	if code != Success {
+		t.Errorf("set_cache_error, code: %v", code)
 	}
-	err = s.Set("Timbre", "+")
-	if err != nil {
-		t.Errorf("set_cache_error, err: %v", err)
+	code = s.Set("Timbre", "+")
+	if code != Success {
+		t.Errorf("set_cache_error, code: %v", code)
 	}
 
-	jsonStr, err := s.DumpAllJSON()
-	if err != nil {
-		t.Errorf("dump_all_json_error, err: %v", err)
+	jsonStr, code := s.DumpAllJSON()
+	if code != Success {
+		t.Errorf("dump_all_json_error, code: %v", code)
 	}
 	want := "{\"Best\":\"Bites!\",\"Timbre\":\"+\"}"
 	if jsonStr != want {
@@ -128,45 +128,45 @@ func Test_DumpAllJSON(t *testing.T) {
 func Test_Increase(t *testing.T) {
 	s := GetShardedMapStore()
 
-	err := s.Increase("desert")
-	if err != nil {
-		t.Errorf("incr_non_existed_key_err, err: %v", err)
+	code := s.Increase("desert")
+	if code != Success {
+		t.Errorf("incr_non_existed_key_err, code: %v", code)
 	}
 
-	v, err := s.Get("desert")
-	if err != nil {
-		t.Errorf("get_cache_error, err: %v", err)
+	v, code := s.Get("desert")
+	if code != Success {
+		t.Errorf("get_cache_error, code: %v", code)
 	}
 	if v.(int) != 1 {
 		t.Errorf("incr_value_err")
 	}
 
-	err = s.Increase("desert")
-	if err != nil {
-		t.Errorf("incr_existed_err, err: %v", err)
+	code = s.Increase("desert")
+	if code != Success {
+		t.Errorf("incr_existed_err, code: %v", code)
 	}
-	v, err = s.Get("desert")
-	if err != nil {
-		t.Errorf("get_cache_error, err: %v", err)
+	v, code = s.Get("desert")
+	if code != Success {
+		t.Errorf("get_cache_error, code: %v", code)
 	}
 	if v.(int) != 2 {
 		t.Errorf("incr_value_err, expected=%v, got=%v", 2, v)
 	}
 
 
-	err = s.Set("gossip", uint32(1234))
-	if err != nil {
-		t.Errorf("set_cache_error, err: %v", err)
+	code = s.Set("gossip", uint32(1234))
+	if code != Success {
+		t.Errorf("set_cache_error, code: %v", code)
 	}
 
-	err = s.Increase("gossip")
-	if err != nil {
-		t.Errorf("incr_existed_key_err, err: %v", err)
+	code = s.Increase("gossip")
+	if code != Success {
+		t.Errorf("incr_existed_key_err, code: %v", code)
 	}
 
-	v, err = s.Get("gossip")
-	if err != nil {
-		t.Errorf("get_cache_error, err: %v", err)
+	v, code = s.Get("gossip")
+	if code != Success {
+		t.Errorf("get_cache_error, code: %v", code)
 	}
 	if v.(uint32) != uint32(1235) {
 		t.Errorf("incr_value_err, expected=%v, got=%v", 1235, v)

@@ -2,7 +2,6 @@ package store
 
 import (
 	"encoding/json"
-	"fmt"
 	"sync"
 	"time"
 )
@@ -65,11 +64,11 @@ func (s *shardedMapStore) selectSharedMap(key string) *shardedMap {
 	return &s.shardedMaps[fnv32(key)%shardCount]
 }
 
-func (s *shardedMapStore) Set(key string, value interface{}) (err error) {
+func (s *shardedMapStore) Set(key string, value interface{}) ErrorCode {
 	return s.SetWithTimeout(key, value, s.defaultTimeout)
 }
 
-func (s *shardedMapStore) SetWithTimeout(key string, value interface{}, timeout time.Duration) (err error) {
+func (s *shardedMapStore) SetWithTimeout(key string, value interface{}, timeout time.Duration) ErrorCode {
 	// TODO: This set method is very naive. It doesn't put any restriction on the input type.
 	// Also, when it get a value, it remove all the pointers above it find the real data. Only save the real data.
 
@@ -95,37 +94,37 @@ func (s *shardedMapStore) SetWithTimeout(key string, value interface{}, timeout 
 			sm.opCount = 0
 		}()
 	}
-	return nil
+	return Success
 }
 
-func (s *shardedMapStore) Get(key string) (value interface{}, err error) {
+func (s *shardedMapStore) Get(key string) (value interface{}, code ErrorCode) {
 	sm := s.selectSharedMap(key)
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	v, ok := sm.m[key]
 	if !ok {
-		return nil, fmt.Errorf("error_cache_not_found")
+		return nil, KeyNotFound
 	}
 	if time.Now().UnixNano() > v.deadline {
 		// The key was timeout. Evict it.
 		delete(sm.m, key)
-		return nil, fmt.Errorf("error_cache_not_found")
+		return nil, KeyNotFound
 	}
 	// TODO: This is terrible. If return the data directly, users can edit the data outside the cache store.
-	return v.data, nil
+	return v.data, Success
 }
 
-func (s *shardedMapStore) Delete(key string) error {
+func (s *shardedMapStore) Delete(key string) ErrorCode {
 	sm := s.selectSharedMap(key)
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	delete(sm.m, key)
-	return nil
+	return Success
 }
 
 // Increase increase the number stored at the key by one. Set the value to 1 if the key is not exist.
 // Return an error if the stored value is not a "integer". Support int, uint32, uint64
-func (s *shardedMapStore) Increase(key string) error {
+func (s *shardedMapStore) Increase(key string) ErrorCode {
 	sm := s.selectSharedMap(key)
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
@@ -136,7 +135,7 @@ func (s *shardedMapStore) Increase(key string) error {
 			data: 1,
 			deadline: maxInt64,
 		}
-		return nil
+		return Success
 	}
 	switch data := v.data.(type) {
 	case int:
@@ -146,14 +145,31 @@ func (s *shardedMapStore) Increase(key string) error {
 	case uint64:
 		sm.m[key].data = data + 1
 	default:
-		return fmt.Errorf("value_is_not_number_type")
+		return ValueNotNUmberType
 	}
-	return nil
+	return Success
 }
 
-func (s *shardedMapStore) Close() error {
+//func (s *shardedMapStore) GetTTL(key string) (time.Duration, ErrorCode) {
+//	sm := s.selectSharedMap(key)
+//	sm.mu.Lock()
+//	defer sm.mu.Unlock()
+//	v, ok := sm.m[key]
+//	if !ok {
+//		return nil, KeyNotFound
+//	}
+//	if time.Now().UnixNano() > v.deadline {
+//		// The key was timeout. Evict it.
+//		delete(sm.m, key)
+//		return nil, KeyNotFound
+//	}
+//	// TODO: This is terrible. If return the data directly, users can edit the data outside the cache store.
+//	return v.data, Success
+//}
+
+func (s *shardedMapStore) Close() ErrorCode {
 	s.shardedMaps = nil
-	return nil
+	return Success
 }
 
 func (s *shardedMapStore) setDefaultTimeout(timeout time.Duration) {
@@ -169,7 +185,7 @@ func (s *shardedMapStore) setMaxMemory(size int64) {
 }
 
 // dumpAllJSON print all the data in cache in json format including the timeout data
-func (s *shardedMapStore) DumpAllJSON() (string, error) {
+func (s *shardedMapStore) DumpAllJSON() (string, ErrorCode) {
 	// TODO: Maybe can support also dump the timeout of each cache key?
 	// TODO: Support limiting the output
 	totalSize := 0
@@ -192,9 +208,9 @@ func (s *shardedMapStore) DumpAllJSON() (string, error) {
 
 	resBytes, err := json.Marshal(res)
 	if err != nil {
-		return "", err
+		return "", JSONMarshalErr
 	}
-	return string(resBytes), nil
+	return string(resBytes), Success
 }
 
 // evictShardedMap loop though the sharded map and evict the expired key
