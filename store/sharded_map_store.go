@@ -145,27 +145,26 @@ func (s *shardedMapStore) Increase(key string) ErrorCode {
 	case uint64:
 		sm.m[key].data = data + 1
 	default:
-		return ValueNotNUmberType
+		return ValueNotNumberType
 	}
 	return Success
 }
 
-//func (s *shardedMapStore) GetTTL(key string) (time.Duration, ErrorCode) {
-//	sm := s.selectSharedMap(key)
-//	sm.mu.Lock()
-//	defer sm.mu.Unlock()
-//	v, ok := sm.m[key]
-//	if !ok {
-//		return nil, KeyNotFound
-//	}
-//	if time.Now().UnixNano() > v.deadline {
-//		// The key was timeout. Evict it.
-//		delete(sm.m, key)
-//		return nil, KeyNotFound
-//	}
-//	// TODO: This is terrible. If return the data directly, users can edit the data outside the cache store.
-//	return v.data, Success
-//}
+func (s *shardedMapStore) GetTTL(key string) (int64, ErrorCode) {
+	sm := s.selectSharedMap(key)
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	v, ok := sm.m[key]
+	if !ok {
+		return 0, KeyNotFound
+	}
+	if time.Now().UnixNano() > v.deadline {
+		// The key was timeout. Evict it.
+		delete(sm.m, key)
+		return 0, KeyNotFound
+	}
+	return v.deadline, Success
+}
 
 func (s *shardedMapStore) Close() ErrorCode {
 	s.shardedMaps = nil

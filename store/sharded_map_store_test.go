@@ -195,3 +195,19 @@ func Test_modifyCacheDataFromOutside(t *testing.T) {
 	}
 
 }
+
+func Test_GetTTL(t *testing.T) {
+	s := GetShardedMapStore()
+	_ = s.SetWithTimeout("salmon", "meteor", 5 * time.Minute)
+
+	_, code := s.GetTTL("milktea")
+	if code != KeyNotFound {
+		t.Errorf("should_be_key_not_found, code: %v", code)
+	}
+
+	ttl, code := s.GetTTL("salmon")
+	if code != Success {
+		t.Errorf("should_be_success, code: %v", code)
+	}
+	fmt.Println("ttl: ", ttl)
+}

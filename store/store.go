@@ -16,7 +16,7 @@ type ErrorCode uint32
 const (
 	Success            = 1
 	KeyNotFound        = 9001
-	ValueNotNUmberType = 9002
+	ValueNotNumberType = 9002
 	JSONMarshalErr     = 9003
 )
 
@@ -27,7 +27,7 @@ type Store interface {
 	Delete(key string) ErrorCode
 	Increase(key string) ErrorCode
 
-	GetTTL(key string) time.Duration
+	GetTTL(key string) (int64, ErrorCode)
 
 	setDefaultTimeout(timeout time.Duration)
 	setEvictionPolicy(policy EvictionPolicy)
