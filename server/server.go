@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -116,6 +117,7 @@ func initRouter() {
 		"DEL":  handleDELCmd,
 		"INCR": handleINCRCmd,
 		"DUMP": handleDUMPALLCmd,
+		"TTL":  handleTTLCmd,
 	}
 }
 
@@ -125,10 +127,10 @@ func handleGETCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
 	}
 	key := string(params[0])
 	// TODO: handle other params
-	value, err := shardedMapStore.Get(key)
-	if err != nil {
-		log.Printf("handler_get_cmd_failed | msg=%v", err.Error())
-		return nil, err.Error(), false
+	value, code := shardedMapStore.Get(key)
+	if code != store.Success {
+		log.Printf("handler_get_cmd_failed | code=%v", code)
+		return nil, fmt.Sprintf("NOT OK: %v", code), false
 	}
 	resp = append(value.([]byte), byte('\n'))
 	return resp, "", true
@@ -140,21 +142,21 @@ func handleSETCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
 	}
 	key := string(params[0])
 	if len(params) == 2 {
-		err := shardedMapStore.Set(key, params[1])
-		if err != nil {
-			log.Printf("set_cmd_failed | msg=%v", err.Error())
-			return nil, err.Error(), false
+		code := shardedMapStore.Set(key, params[1])
+		if code != store.Success {
+			log.Printf("set_cmd_failed | code=%v", code)
+			return nil, fmt.Sprintf("NOT OK: %v", code), false
 		}
 	} else if len(params) == 3 {
 		timeout, err := strconv.Atoi(string(params[2]))
 		if err != nil {
 			log.Printf("parse_timeout_failed | msg=%v", err.Error())
-			return nil, "invalid timeout", false
+			return nil, "NOT OK: invalid timeout", false
 		}
-		err = shardedMapStore.SetWithTimeout(key, params[1], time.Duration(timeout)*time.Second)
-		if err != nil {
-			log.Printf("set_with_timeout_cmd_failed | msg=%v", err.Error())
-			return nil, err.Error(), false
+		code := shardedMapStore.SetWithTimeout(key, params[1], time.Duration(timeout)*time.Second)
+		if code != store.Success {
+			log.Printf("set_with_timeout_cmd_failed | code=%v", code)
+			return nil, fmt.Sprintf("NOT OK: %v", code), false
 		}
 	}
 	// TODO: handle other params
@@ -169,10 +171,10 @@ func handleDELCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
 	}
 	key := string(params[0])
 	// TODO: handle other params
-	err := shardedMapStore.Delete(key)
-	if err != nil {
-		log.Printf("handler_del_cmd_failed | msg=%v", err.Error())
-		return nil, err.Error(), false
+	code := shardedMapStore.Delete(key)
+	if code != store.Success {
+		log.Printf("handler_del_cmd_failed | code=%v", code)
+		return nil, fmt.Sprintf("NOT OK: %v", code), false
 	}
 	return respOK, "", true
 }
@@ -183,10 +185,10 @@ func handleINCRCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
 	}
 	key := string(params[0])
 
-	err := shardedMapStore.Increase(key)
-	if err != nil {
-		log.Printf("handler_increase_cmd_failed | msg=%v", err.Error())
-		return nil, err.Error(), false      // TODO: The returned err msg should be unified
+	code := shardedMapStore.Increase(key)
+	if code != store.Success {
+		log.Printf("handler_increase_cmd_failed | code=%v", code)
+		return nil, fmt.Sprintf("NOT OK: %v", code), false      // TODO: The returned err msg should be unified
 	}
 	return respOK, "", true
 }
@@ -194,10 +196,25 @@ func handleINCRCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
 func handleDUMPALLCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
 	// ignore param?
 	// TODO: this method should limit the number of keys?
-	jsonStr, err := shardedMapStore.DumpAllJSON()
-	if err != nil {
-		log.Printf("handler_dump_all_cmd_failed | msg=%v", err.Error())
-		return nil, err.Error(), false
+	jsonStr, code := shardedMapStore.DumpAllJSON()
+	if code != code {
+		log.Printf("handler_dump_all_cmd_failed | code=%v", code)
+		return nil, fmt.Sprintf("NOT OK: %v", code), false
 	}
 	return []byte(jsonStr), "", true
+}
+
+
+func handleTTLCmd(params... []byte) (resp []byte, errMsg string, ok bool) {
+	if len(params) < 1 {
+		return nil, "not enough parameters", false
+	}
+	key := string(params[0])
+
+	ttl, code := shardedMapStore.GetTTL(key)
+	if code != store.Success {
+		log.Printf("handler_get_ttl_cmd_failed | code=%v", code)
+		return nil, fmt.Sprintf("NOT OK: %v", code), false      // TODO: The returned err msg should be unified
+	}
+	return []byte(strconv.Itoa(int(ttl - time.Now().UnixNano()))), "", true
 }
