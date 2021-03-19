@@ -24,6 +24,7 @@ func main() {
 	}
 
 	// TODO: should connect to remote server before running the cli
+	defer tcp.CloseConn()
 	cmd_reader.Run(cfg)
 }
 
