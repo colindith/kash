@@ -105,10 +105,17 @@ func (s *shardedMapStore) SetWithTimeout(key string, value interface{}, timeout 
 		e.data = value
 		e.deadline = deadline
 	} else {
-		e = &entry{
-			data:     value,
-			deadline: deadline,
-			key:      key,
+		if s.lru {
+			e = &entry{
+				data:     value,
+				deadline: deadline,
+				key:      key,
+			}
+		} else {
+			e = &entry{
+				data:     value,
+				deadline: deadline,
+			}
 		}
 		s.length++
 		sm.m[key] = e
@@ -117,6 +124,7 @@ func (s *shardedMapStore) SetWithTimeout(key string, value interface{}, timeout 
 
 
 	if s.lru {
+		s.linkedListMutex.Lock()
 		if s.head == nil {
 			// first key case
 			s.head = e
@@ -133,6 +141,7 @@ func (s *shardedMapStore) SetWithTimeout(key string, value interface{}, timeout 
 				}
 			}
 		}
+		s.linkedListMutex.Unlock()
 	}
 
 	if sm.opCount >= triggeringEvictionOptNum {
@@ -160,8 +169,10 @@ func (s *shardedMapStore) Get(key string) (value interface{}, code ErrorCode) {
 	}
 
 	if s.lru {
+		s.linkedListMutex.Lock()
 		// move the entry to the head of linked list
 		s.moveEntryToFront(e)
+		s.linkedListMutex.Unlock()
 	}
 
 	// TODO: This is terrible. If return the data directly, users can edit the data outside the cache store.
@@ -171,7 +182,9 @@ func (s *shardedMapStore) Get(key string) (value interface{}, code ErrorCode) {
 func (s *shardedMapStore) Delete(key string) ErrorCode {
 	e := s.deleteKeyFromMap(key)
 	if s.lru {
+		s.linkedListMutex.Lock()
 		s.evictEntryFromLL(e)
+		s.linkedListMutex.Unlock()
 		s.length--
 	}
 	return Success
@@ -188,27 +201,35 @@ func (s *shardedMapStore) Increase(key string) ErrorCode {
 
 	e, ok := sm.m[key]
 	if !ok {
-		e = &entry{
-			data:     1,
-			deadline: maxInt64,
-			key:      key,
+		if s.lru {
+			e = &entry{
+				data:     1,
+				deadline: maxInt64,
+				key:      key,
+			}
+		} else {
+			e = &entry{
+				data:     1,
+				deadline: maxInt64,
+			}
 		}
 		sm.m[key] = e
 		s.length++
-		return Success
-	}
-	switch data := e.data.(type) {
-	case int:
-		e.data = data + 1
-	case uint32:
-		e.data = data + 1
-	case uint64:
-		e.data = data + 1
-	default:
-		return ValueNotNumberType
+	} else {
+		switch data := e.data.(type) {
+		case int:
+			e.data = data + 1
+		case uint32:
+			e.data = data + 1
+		case uint64:
+			e.data = data + 1
+		default:
+			return ValueNotNumberType
+		}
 	}
 
 	if s.lru {
+		s.linkedListMutex.Lock()
 		// TODO: The following codes are duplicated
 		if s.head == nil {
 			// first key case
@@ -226,6 +247,7 @@ func (s *shardedMapStore) Increase(key string) ErrorCode {
 				}
 			}
 		}
+		s.linkedListMutex.Unlock()
 	}
 
 	return Success
