@@ -7,9 +7,9 @@ import "github.com/colindith/kash/store"
 
 s := store.GetShardedMapStore()
 
-_ = s.SetWithTimeout("key1", "timbre+", 1 * time.Minute)
+s.SetWithTimeout("key1", "timbre+", 1 * time.Minute)
 
-_ = s.Set("key2", "Best Bites!")
+s.Set("key2", "Best Bites!")
 
 v, _ := s.Get("key1")
 
@@ -20,6 +20,10 @@ fmt.Println(s.DumpAllJSON())
 
 s.Delete("key1")
 
+```
+Limit the cache size with LRU eviction.
+```
+s := store.GetShardedMapStore(store.SetCapacity(100), store.SetEvictionPolicy(store.EvictionLRU))
 ```
 
 ### Features
