@@ -32,6 +32,7 @@ type Store interface {
 	setDefaultTimeout(timeout time.Duration)
 	setEvictionPolicy(policy EvictionPolicy)
 	setMaxMemory(size int64)
+	setCapacity(cap int)
 
 	DumpAllJSON() (string, ErrorCode)
 
@@ -65,6 +66,14 @@ func SetMaxMemory(sizeHuman string) Option {
 			return
 		}
 		s.setMaxMemory(size)
+	}
+}
+
+// SetCapacity generate an Option for setting the max keys can be stored in the cache
+// When mem usage exceed this threshold, the stored data would be evicted according to the eviction policy
+func SetCapacity(cap int) Option {
+	return func(s Store) {
+		s.setCapacity(cap)
 	}
 }
 

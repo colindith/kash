@@ -211,3 +211,79 @@ func Test_GetTTL(t *testing.T) {
 	}
 	fmt.Println("ttl: ", ttl)
 }
+
+func callFunc(s Store, funcName string, args []interface{}) (resp interface{}) {
+	switch funcName {
+	case "Set":
+		s.Set(args[0].(string), args[1])
+		return nil
+	case "SetWithTimeout":
+		s.SetWithTimeout(args[0].(string), args[1], args[1].(time.Duration))
+		return nil
+	case "Get":
+		value, code := s.Get(args[0].(string))
+		if code == KeyNotFound {
+			return -1
+		}
+		return value
+	case "GetTTL":
+		ttl, _ := s.GetTTL(args[0].(string))
+		return ttl
+	case "Delete":
+		s.Delete(args[0].(string))
+		return nil
+	case "Increase":
+		s.Increase(args[0].(string))
+		return nil
+	default:
+		panic("not recognized func name")
+	}
+}
+
+func callFuncs(s Store, funcNames []string, argsSlice [][]interface{}) []interface{} {
+	if len(funcNames) != len(argsSlice) {
+		panic("len of funcNames not equal to len of argsSlice")
+	}
+
+	res := make([]interface{}, 0, len(funcNames))
+
+	for i := range funcNames {
+		res = append(res, callFunc(s, funcNames[i], argsSlice[i]))
+	}
+	return res
+}
+
+func Test_LRU_flow(t *testing.T) {
+	testCases := []struct{
+		s Store
+		funcNames []string
+		argsSlice [][]interface{}
+		expected []interface{}
+	}{
+		{
+			GetShardedMapStore(SetCapacity(2), SetEvictionPolicy(EvictionLRU)),
+			[]string{"Set", "Set", "Get", "Set", "Get", "Set", "Get", "Get", "Get"},
+			[][]interface{}{{"1", 1}, {"2", "2"}, {"1"}, {"3", 3}, {"2"}, {"4", 4}, {"1"}, {"3"}, {"4"}},
+			[]interface{}{nil, nil, 1, nil, -1, nil, -1, 3, 4},
+		},
+		{
+			GetShardedMapStore(SetCapacity(2), SetEvictionPolicy(EvictionLRU)),
+			[]string{"Set","Get"},
+			[][]interface{}{{"2",1},{"2"}},
+			[]interface{}{nil, 1},
+		},
+		{
+			GetShardedMapStore(SetCapacity(2), SetEvictionPolicy(EvictionLRU)),
+			[]string{"Set","Set","Set","Set","Get","Get"},
+			[][]interface{}{{"2",1},{"1",1},{"2",3},{"4",1},{"1"},{"2"}},
+			[]interface{}{nil,nil,nil,nil,-1,3},
+		},
+	}
+
+	for _, testCase := range testCases {
+		res := callFuncs(testCase.s, testCase.funcNames, testCase.argsSlice)
+		if !reflect.DeepEqual(res, testCase.expected) {
+			t.Errorf("return value not correct, res=%v, expected=%v", res, testCase.expected)
+		}
+	}
+}

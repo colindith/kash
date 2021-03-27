@@ -10,10 +10,8 @@ const (
 	shardCount = 32
 
 	// The EvictionPolicy is not implemented
-	EvictionVolatileRandom EvictionPolicy = 0
-	EvictionVolatileLRU EvictionPolicy    = 1
-	EvictionAllRandom EvictionPolicy      = 2
-	EvictionAllLRU EvictionPolicy         = 3
+	EvictionRandom EvictionPolicy = 0
+	EvictionLRU    EvictionPolicy = 1
 
 	maxInt64 = int64(^uint64(0)>>1)
 )
@@ -27,7 +25,15 @@ type shardedMapStore struct {
 
 	defaultTimeout time.Duration
 	maxMemory int64              // unit: bytes
+	capacity int                 // The max number of keys can be stored in cache. 0 means no limit. Default value is 0.
 	evictionPolicy EvictionPolicy
+
+	// LRU
+	lru bool
+	head *entry
+	tail *entry
+	length int                   // current key count
+	linkedListMutex sync.Mutex   // TODO: LL operation should lock with this mutex
 }
 
 type shardedMap struct {
@@ -40,6 +46,11 @@ type shardedMap struct {
 type entry struct {
 	data interface{}
 	deadline int64    // timestamp nanosecond
+
+	// For LRU
+	key string        // TODO: This is bad cause it would need too many additional space. Maybe change it to *string?
+	prev *entry
+	next *entry
 }
 
 func GetShardedMapStore(opts... Option) Store {
@@ -57,6 +68,11 @@ func GetShardedMapStore(opts... Option) Store {
 	for _, opt := range opts {
 		opt(s)
 	}
+
+	if s.capacity != 0 && s.evictionPolicy == EvictionLRU {
+		s.lru = true
+	}
+
 	return s
 }
 
@@ -82,11 +98,43 @@ func (s *shardedMapStore) SetWithTimeout(key string, value interface{}, timeout 
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	sm.m[key] = &entry{
-		data: value,
-		deadline: deadline,
+	var e *entry
+	var ok bool
+	if e, ok = sm.m[key]; ok {
+		// Avoid create new entry obj to reduce non-necessary allocation
+		e.data = value
+		e.deadline = deadline
+	} else {
+		e = &entry{
+			data:     value,
+			deadline: deadline,
+			key:      key,
+		}
+		s.length++
+		sm.m[key] = e
 	}
 	sm.opCount++
+
+
+	if s.lru {
+		if s.head == nil {
+			// first key case
+			s.head = e
+			s.tail = s.head
+		} else {
+			if ok {
+				// The key already be in cache. Don't need to create new node in linked list
+				s.moveEntryToFront(e)
+			} else {
+				s.addEntryToFront(e)
+
+				if s.length > s.capacity {
+					s.lruEvict()
+				}
+			}
+		}
+	}
+
 	if sm.opCount >= triggeringEvictionOptNum {
 		go func() {
 			// TODO: Except for this, there are other occurrences that should trigger eviction
@@ -101,52 +149,85 @@ func (s *shardedMapStore) Get(key string) (value interface{}, code ErrorCode) {
 	sm := s.selectSharedMap(key)
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	v, ok := sm.m[key]
+	e, ok := sm.m[key]
 	if !ok {
 		return nil, KeyNotFound
 	}
-	if time.Now().UnixNano() > v.deadline {
+	if time.Now().UnixNano() > e.deadline {
 		// The key was timeout. Evict it.
 		delete(sm.m, key)
 		return nil, KeyNotFound
 	}
+
+	if s.lru {
+		// move the entry to the head of linked list
+		s.moveEntryToFront(e)
+	}
+
 	// TODO: This is terrible. If return the data directly, users can edit the data outside the cache store.
-	return v.data, Success
+	return e.data, Success
 }
 
 func (s *shardedMapStore) Delete(key string) ErrorCode {
-	sm := s.selectSharedMap(key)
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-	delete(sm.m, key)
+	e := s.deleteKeyFromMap(key)
+	if s.lru {
+		s.evictEntryFromLL(e)
+		s.length--
+	}
 	return Success
 }
 
 // Increase increase the number stored at the key by one. Set the value to 1 if the key is not exist.
-// Return an error if the stored value is not a "integer". Support int, uint32, uint64
+// Return an error if the stored value is not an "integer". Support int, uint32, uint64
 func (s *shardedMapStore) Increase(key string) ErrorCode {
 	sm := s.selectSharedMap(key)
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	v, ok := sm.m[key]
+	var e *entry
+
+	e, ok := sm.m[key]
 	if !ok {
-		sm.m[key] = &entry{
-			data: 1,
+		e = &entry{
+			data:     1,
 			deadline: maxInt64,
+			key:      key,
 		}
+		sm.m[key] = e
+		s.length++
 		return Success
 	}
-	switch data := v.data.(type) {
+	switch data := e.data.(type) {
 	case int:
-		sm.m[key].data = data + 1
+		e.data = data + 1
 	case uint32:
-		sm.m[key].data = data + 1
+		e.data = data + 1
 	case uint64:
-		sm.m[key].data = data + 1
+		e.data = data + 1
 	default:
 		return ValueNotNumberType
 	}
+
+	if s.lru {
+		// TODO: The following codes are duplicated
+		if s.head == nil {
+			// first key case
+			s.head = e
+			s.tail = s.head
+		} else {
+			if ok {
+				// The key already be in cache. Don't need to create new node in linked list
+				s.moveEntryToFront(e)
+			} else {
+				s.addEntryToFront(e)
+
+				if s.length > s.capacity {
+					s.lruEvict()
+				}
+			}
+		}
+	}
+
 	return Success
 }
 
@@ -176,11 +257,17 @@ func (s *shardedMapStore) setDefaultTimeout(timeout time.Duration) {
 }
 
 func (s *shardedMapStore) setEvictionPolicy(policy EvictionPolicy) {
+	// s method can only be called at init stage of cache
 	s.evictionPolicy = policy
 }
 
 func (s *shardedMapStore) setMaxMemory(size int64) {
 	s.maxMemory = size
+}
+
+func (s *shardedMapStore) setCapacity(cap int) {
+	// s method can only be called at init stage of cache
+	s.capacity = cap
 }
 
 // dumpAllJSON print all the data in cache in json format including the timeout data
@@ -224,7 +311,103 @@ func evictShardedMap(sm *shardedMap) {
 	}
 }
 
-// evictVolatileRandomShardedMap loop though the sharded map and evict the expired key
-func evictVolatileRandomShardedMap(sm *shardedMap) {
-	// TODO: implement this
+func (s *shardedMapStore) moveEntryToFront(e *entry) {
+	// TODO: There are some duplicated codes.
+	if e == s.head {
+		return
+	} else if e == s.tail {
+		prev := e.prev
+		prev.next = nil
+		s.tail = prev
+
+		e.next = s.head
+		s.head.prev = e
+		s.head = e
+	} else {
+		prev := e.prev
+		prev.next = e.next
+		e.next.prev = prev
+
+		e.next = s.head
+		s.head.prev = e
+		s.head = e
+	}
+}
+
+func (s *shardedMapStore) addEntryToFront(e *entry) {
+	if s.head == nil {
+		s.head = e
+		s.tail = s.head
+		return
+	}
+	s.head.prev = e
+	e.next = s.head
+	s.head = e
+}
+
+func (s *shardedMapStore) evictTailFromLL() {
+	if s.tail == nil {
+		// nothing to evict
+		return
+	}
+	prev := s.tail.prev
+	if prev == nil {
+		// only one element in linked list
+		if s.tail != s.head {
+			panic("tail of linked list has no prev")
+		}
+		s.head, s.tail = nil, nil
+		return
+	}
+	s.tail = prev
+	prev.next = nil
+}
+
+func (s *shardedMapStore) evictHeadFromLL() {
+	if s.head == nil {
+		// nothing to evict
+		return
+	}
+	next := s.head.next
+	if next == nil {
+		// only one element in linked list
+		if s.tail != s.head {
+			panic("head of linked list has no next")
+		}
+		s.head, s.tail = nil, nil
+		return
+	}
+	s.head = next
+	next.prev = nil
+}
+
+func (s *shardedMapStore) evictEntryFromLL(e *entry) {
+	if e == s.tail {
+		s.evictTailFromLL()
+	} else if e == s.head {
+		s.evictHeadFromLL()
+	} else {
+		e.prev.next, e.next.prev = e.next, e.prev
+	}
+}
+
+func (s *shardedMapStore) deleteKeyFromMap(key string) (e *entry) {
+	sm := s.selectSharedMap(key)
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	e, _ = sm.m[key]
+	delete(sm.m, key)
+
+	return e
+}
+
+func (s *shardedMapStore) lruEvict() {
+	// TODO: should support evict multiple
+	s.deleteKeyFromMap(s.tail.key)
+
+	// delete from double linked list
+	s.evictTailFromLL()
+
+	s.length--
 }
